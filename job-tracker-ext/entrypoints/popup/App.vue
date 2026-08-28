@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
+
 import { db } from "../../src/services/db";
+
 import type { JobApplication } from "../../src/types";
 
 const applications = ref<JobApplication[]>([]);
 
 const openDashboard = () => {
-  // Opens the full-page dashboard in a new Chrome tab
-  browser.tabs.create({ url: browser.runtime.getURL("/dashboard.html") });
+  browser.tabs.create({
+    url: browser.runtime.getURL("/dashboard.html"),
+  });
 };
 
 const addManualApplication = () => {
@@ -16,47 +19,237 @@ const addManualApplication = () => {
   });
 };
 
+const recentApplications = computed(() => {
+  return [...applications.value]
+    .sort(
+      (a, b) =>
+        new Date(b.applicationDate).getTime() -
+        new Date(a.applicationDate).getTime(),
+    )
+    .slice(0, 3);
+});
+
+const interviewCount = computed(
+  () => applications.value.filter((app) => app.status === "Interview").length,
+);
+
+function formatDate(date: string) {
+  return new Date(date).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+function statusClass(status: JobApplication["status"]) {
+  switch (status) {
+    case "Offer":
+      return "bg-emerald-50 text-emerald-700";
+
+    case "Interview":
+      return "bg-violet-50 text-violet-700";
+
+    case "Rejected":
+      return "bg-red-50 text-red-600";
+
+    case "Assessment":
+      return "bg-amber-50 text-amber-700";
+
+    case "Applied":
+      return "bg-blue-50 text-blue-700";
+
+    default:
+      return "bg-gray-100 text-gray-600";
+  }
+}
+
 onMounted(async () => {
-  // Fetch all saved applications from IndexedDB
   applications.value = await db.applications.toArray();
 });
 </script>
 
 <template>
-  <button
-    @click="openDashboard"
-    class="w-full mt-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded transition-colors"
-  >
-    Open Full Dashboard
-  </button>
-  <button
-    @click="addManualApplication"
-    class="w-full mt-2 py-2 border border-blue-600 text-blue-600 hover:bg-blue-50 text-sm font-semibold rounded transition-colors"
-  >
-    + Add Application Manually
-  </button>
-  <div class="w-80 p-4 bg-gray-50 text-gray-800">
-    <h1 class="text-lg font-bold mb-4 text-blue-600">JobTrack</h1>
+  <div class="w-[360px] bg-white text-gray-900">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-5 pt-5 pb-4">
+      <div class="flex items-center gap-3">
+        <div
+          class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <rect x="3" y="7" width="18" height="13" rx="2" />
+            <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <path d="M3 12h18" />
+          </svg>
+        </div>
 
-    <div
-      v-if="applications.length === 0"
-      class="text-sm text-gray-500 text-center py-4"
-    >
-      No applications tracked yet. Go apply for a job!
+        <div>
+          <h1 class="text-[15px] font-semibold leading-tight">JobTrack</h1>
+
+          <p class="mt-0.5 text-xs text-gray-400">Application tracker</p>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+        title="Open dashboard"
+        @click="openDashboard"
+      >
+        <svg
+          width="17"
+          height="17"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M14 3h7v7" />
+          <path d="M10 14 21 3" />
+          <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
+        </svg>
+      </button>
     </div>
 
-    <ul class="space-y-2">
-      <li
-        v-for="job in applications"
-        :key="job.id"
-        class="p-3 bg-white rounded shadow-sm border border-gray-100"
-      >
-        <div class="font-semibold text-sm">{{ job.jobTitle }}</div>
-        <div class="text-xs text-gray-600 mt-1">
-          {{ job.company }} &bull;
-          <span class="text-green-600 font-medium">{{ job.status }}</span>
+    <!-- Summary -->
+    <div class="mx-5 grid grid-cols-2 gap-3">
+      <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+        <div class="text-xs text-gray-500">Applications</div>
+
+        <div class="mt-1 text-xl font-semibold tracking-tight">
+          {{ applications.length }}
         </div>
-      </li>
-    </ul>
+      </div>
+
+      <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+        <div class="text-xs text-gray-500">Interviews</div>
+
+        <div class="mt-1 text-xl font-semibold tracking-tight">
+          {{ interviewCount }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent -->
+    <div class="px-5 pt-5">
+      <div class="mb-3 flex items-center justify-between">
+        <h2 class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          Recent
+        </h2>
+
+        <button
+          v-if="applications.length > 0"
+          type="button"
+          class="text-xs font-medium text-blue-600 hover:text-blue-700"
+          @click="openDashboard"
+        >
+          View all
+        </button>
+      </div>
+
+      <!-- Empty State -->
+      <div
+        v-if="recentApplications.length === 0"
+        class="rounded-xl border border-dashed border-gray-200 px-5 py-7 text-center"
+      >
+        <div
+          class="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-400"
+        >
+          <svg
+            width="17"
+            height="17"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M12 5v14" />
+
+            <path d="M5 12h14" />
+          </svg>
+        </div>
+
+        <p class="mt-3 text-sm font-medium text-gray-700">
+          No applications yet
+        </p>
+
+        <p class="mt-1 text-xs leading-5 text-gray-400">
+          Applications you track will show up here.
+        </p>
+      </div>
+
+      <!-- Recent List -->
+      <div v-else class="divide-y divide-gray-100">
+        <div
+          v-for="job in recentApplications"
+          :key="job.id"
+          class="flex items-start justify-between gap-3 py-3"
+        >
+          <div class="min-w-0">
+            <div class="truncate text-sm font-medium text-gray-800">
+              {{ job.jobTitle }}
+            </div>
+
+            <div class="mt-1 flex items-center gap-2 text-xs text-gray-400">
+              <span class="max-w-[135px] truncate">
+                {{ job.company }}
+              </span>
+
+              <span> · </span>
+
+              <span>
+                {{ formatDate(job.applicationDate) }}
+              </span>
+            </div>
+          </div>
+
+          <span
+            :class="[
+              'shrink-0 rounded-full px-2 py-1 text-[10px] font-medium',
+              statusClass(job.status),
+            ]"
+          >
+            {{ job.status }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer Actions -->
+    <div class="mt-4 border-t border-gray-100 p-4">
+      <button
+        type="button"
+        class="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
+        @click="addManualApplication"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M12 5v14" />
+          <path d="M5 12h14" />
+        </svg>
+
+        Add application
+      </button>
+
+      <button
+        type="button"
+        class="mt-2 w-full rounded-xl px-4 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
+        @click="openDashboard"
+      >
+        Open dashboard
+      </button>
+    </div>
   </div>
 </template>

@@ -115,6 +115,38 @@ const filteredApplications = computed(() => {
   });
 });
 
+const activeCount = computed(
+  () =>
+    applications.value.filter(
+      (app) => app.status !== "Rejected" && app.status !== "Withdrawn",
+    ).length,
+);
+
+function statusClass(status: JobApplication["status"]) {
+  switch (status) {
+    case "Offer":
+      return "bg-emerald-50 text-emerald-700 border-emerald-200";
+
+    case "Interview":
+      return "bg-violet-50 text-violet-700 border-violet-200";
+
+    case "Assessment":
+      return "bg-amber-50 text-amber-700 border-amber-200";
+
+    case "Rejected":
+      return "bg-red-50 text-red-600 border-red-200";
+
+    case "Applied":
+      return "bg-blue-50 text-blue-700 border-blue-200";
+
+    case "Withdrawn":
+      return "bg-gray-100 text-gray-500 border-gray-200";
+
+    default:
+      return "bg-gray-50 text-gray-600 border-gray-200";
+  }
+}
+
 // -----------------------------
 // Add / Edit Form
 // -----------------------------
@@ -252,337 +284,472 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="max-w-7xl mx-auto p-8">
-    <!-- Header -->
-    <div
-      class="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8"
-    >
-      <div>
-        <h1 class="text-3xl font-bold text-gray-900">Application Dashboard</h1>
-
-        <p class="text-sm text-gray-500 mt-1">
-          Track and manage your job applications.
-        </p>
-      </div>
-
-      <button
-        class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow-sm"
-        @click="openAddForm"
+  <div class="min-h-screen bg-gray-50">
+    <div class="mx-auto max-w-[1440px] px-6 py-8 lg:px-10">
+      <!-- Header -->
+      <header
+        class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center"
       >
-        + Add Application
-      </button>
-    </div>
-
-    <!-- Statistics -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-      <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-        <div class="text-sm font-medium text-gray-500">Total</div>
-
-        <div class="text-3xl font-bold text-gray-900 mt-2">
-          {{ totalApplications }}
-        </div>
-      </div>
-
-      <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-        <div class="text-sm font-medium text-gray-500">Applied</div>
-
-        <div class="text-3xl font-bold text-blue-600 mt-2">
-          {{ appliedCount }}
-        </div>
-      </div>
-
-      <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-        <div class="text-sm font-medium text-gray-500">Interviews</div>
-
-        <div class="text-3xl font-bold text-purple-600 mt-2">
-          {{ interviewCount }}
-        </div>
-      </div>
-
-      <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-        <div class="text-sm font-medium text-gray-500">Offers</div>
-
-        <div class="text-3xl font-bold text-green-600 mt-2">
-          {{ offerCount }}
-        </div>
-      </div>
-
-      <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-        <div class="text-sm font-medium text-gray-500">Rejected</div>
-
-        <div class="text-3xl font-bold text-red-500 mt-2">
-          {{ rejectedCount }}
-        </div>
-      </div>
-    </div>
-
-    <!-- Search & Filters -->
-    <div class="bg-white border border-gray-200 rounded-xl p-4 mb-6 shadow-sm">
-      <div class="grid grid-cols-1 md:grid-cols-[1fr_200px_200px_auto] gap-3">
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Search company, role or location..."
-          class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-
-        <select
-          v-model="selectedStatus"
-          class="border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white"
-        >
-          <option v-for="status in statusOptions" :key="status" :value="status">
-            {{ status === "All" ? "All statuses" : status }}
-          </option>
-        </select>
-
-        <select
-          v-model="selectedPlatform"
-          class="border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white"
-        >
-          <option
-            v-for="platform in platformOptions"
-            :key="platform"
-            :value="platform"
-          >
-            {{ platform === "All" ? "All platforms" : platform }}
-          </option>
-        </select>
-
-        <button
-          type="button"
-          class="px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
-          @click="clearFilters"
-        >
-          Clear
-        </button>
-      </div>
-
-      <div class="text-xs text-gray-500 mt-3">
-        Showing
-        {{ filteredApplications.length }}
-        of
-        {{ applications.length }}
-        applications
-      </div>
-    </div>
-
-    <!-- Applications -->
-    <div
-      class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
-    >
-      <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse min-w-[1100px]">
-          <thead>
-            <tr
-              class="bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wide text-gray-500"
+        <div>
+          <div class="flex items-center gap-3">
+            <div
+              class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white"
             >
-              <th class="p-4 font-semibold">Company</th>
+              <svg
+                width="19"
+                height="19"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="3" y="7" width="18" height="13" rx="2" />
+                <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <path d="M3 12h18" />
+              </svg>
+            </div>
 
-              <th class="p-4 font-semibold">Role</th>
+            <div>
+              <h1 class="text-2xl font-semibold tracking-tight text-gray-900">
+                Applications
+              </h1>
 
-              <th class="p-4 font-semibold">Location</th>
-
-              <th class="p-4 font-semibold">Platform</th>
-
-              <th class="p-4 font-semibold">Date</th>
-
-              <th class="p-4 font-semibold">Confidence</th>
-
-              <th class="p-4 font-semibold">Status</th>
-
-              <th class="p-4 font-semibold text-right">Actions</th>
-            </tr>
-          </thead>
-
-          <tbody class="divide-y divide-gray-100">
-            <tr
-              v-for="job in filteredApplications"
-              :key="job.id"
-              class="hover:bg-gray-50 transition-colors"
-            >
-              <!-- Company -->
-              <td class="p-4">
-                <div class="font-semibold text-gray-900">
-                  {{ job.company }}
-                </div>
-
-                <div class="text-xs text-gray-400 mt-1 capitalize">
-                  {{ job.source }}
-                </div>
-              </td>
-
-              <!-- Role -->
-              <td class="p-4">
-                <a
-                  v-if="job.jobUrl"
-                  :href="job.jobUrl"
-                  target="_blank"
-                  class="text-blue-600 hover:underline font-medium"
-                >
-                  {{ job.jobTitle }}
-                </a>
-
-                <span v-else class="font-medium text-gray-800">
-                  {{ job.jobTitle }}
-                </span>
-
-                <div v-if="job.salary" class="text-xs text-gray-500 mt-1">
-                  {{ job.salary }}
-                </div>
-
-                <div v-if="job.jobType" class="text-xs text-gray-400 mt-1">
-                  {{ job.jobType }}
-                </div>
-              </td>
-
-              <!-- Location -->
-              <td class="p-4 text-sm text-gray-600">
-                {{ job.location || "—" }}
-              </td>
-
-              <!-- Platform -->
-              <td class="p-4">
-                <div class="text-sm text-gray-700">
-                  {{ job.platform }}
-                </div>
-
-                <div class="text-xs text-gray-400 mt-1">
-                  {{ job.extractionMethod }}
-                </div>
-              </td>
-
-              <!-- Date -->
-              <td class="p-4 text-sm text-gray-500">
-                {{ new Date(job.applicationDate).toLocaleDateString() }}
-              </td>
-
-              <!-- Confidence -->
-              <td class="p-4">
-                <div
-                  v-if="job.source === 'manual'"
-                  class="inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-medium bg-gray-50 text-gray-600 border-gray-200"
-                >
-                  Manual
-                </div>
-
-                <div v-else class="space-y-1.5">
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs text-gray-500 w-12"> Data </span>
-
-                    <span
-                      :class="[
-                        'inline-flex px-2 py-0.5 rounded-full border text-xs font-medium',
-                        confidenceClass(job.extractionConfidence),
-                      ]"
-                    >
-                      {{ percentage(job.extractionConfidence) }}%
-                    </span>
-                  </div>
-
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs text-gray-500 w-12"> Apply </span>
-
-                    <span
-                      :class="[
-                        'inline-flex px-2 py-0.5 rounded-full border text-xs font-medium',
-                        confidenceClass(job.applicationConfidence),
-                      ]"
-                    >
-                      {{ percentage(job.applicationConfidence) }}%
-                    </span>
-                  </div>
-
-                  <div v-if="job.userConfirmed" class="text-xs text-green-600">
-                    User confirmed
-                  </div>
-                </div>
-              </td>
-
-              <!-- Status -->
-              <td class="p-4">
-                <select
-                  :value="job.status"
-                  class="text-sm border border-gray-300 rounded-lg bg-white px-2 py-1.5"
-                  @change="updateStatus(job, $event)"
-                >
-                  <option value="Saved">Saved</option>
-
-                  <option value="Applied">Applied</option>
-
-                  <option value="Assessment">Assessment</option>
-
-                  <option value="Interview">Interview</option>
-
-                  <option value="Offer">Offer</option>
-
-                  <option value="Rejected">Rejected</option>
-
-                  <option value="Withdrawn">Withdrawn</option>
-                </select>
-              </td>
-
-              <!-- Actions -->
-              <td class="p-4 text-right">
-                <div class="flex justify-end gap-3">
-                  <button
-                    class="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                    @click="openEditForm(job)"
-                  >
-                    Edit
-                  </button>
-
-                  <button
-                    class="text-red-500 hover:text-red-700 text-sm font-medium"
-                    @click="deleteApp(job.id)"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- No applications at all -->
-      <div v-if="applications.length === 0" class="p-12 text-center">
-        <div class="text-lg font-medium text-gray-700">No applications yet</div>
-
-        <div class="text-sm text-gray-500 mt-1 mb-5">
-          Applications detected by the extension will appear here.
+              <p class="mt-0.5 text-sm text-gray-500">
+                Keep track of every opportunity in one place.
+              </p>
+            </div>
+          </div>
         </div>
 
         <button
-          class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold"
+          class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
           @click="openAddForm"
         >
-          Add your first application
-        </button>
-      </div>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M12 5v14" />
+            <path d="M5 12h14" />
+          </svg>
 
-      <!-- Filters returned nothing -->
-      <div
-        v-else-if="filteredApplications.length === 0"
-        class="p-12 text-center"
+          Add application
+        </button>
+      </header>
+
+      <!-- Stats -->
+      <section class="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div class="rounded-2xl border border-gray-200 bg-white p-5">
+          <p class="text-sm text-gray-500">Total</p>
+
+          <div class="mt-3 flex items-end justify-between">
+            <p class="text-3xl font-semibold tracking-tight text-gray-900">
+              {{ totalApplications }}
+            </p>
+
+            <span class="text-xs text-gray-400"> applications </span>
+          </div>
+        </div>
+
+        <div class="rounded-2xl border border-gray-200 bg-white p-5">
+          <p class="text-sm text-gray-500">Active</p>
+
+          <p class="mt-3 text-3xl font-semibold tracking-tight text-gray-900">
+            {{ activeCount }}
+          </p>
+        </div>
+
+        <div class="rounded-2xl border border-gray-200 bg-white p-5">
+          <p class="text-sm text-gray-500">Interviews</p>
+
+          <p class="mt-3 text-3xl font-semibold tracking-tight text-gray-900">
+            {{ interviewCount }}
+          </p>
+        </div>
+
+        <div class="rounded-2xl border border-gray-200 bg-white p-5">
+          <p class="text-sm text-gray-500">Offers</p>
+
+          <p class="mt-3 text-3xl font-semibold tracking-tight text-gray-900">
+            {{ offerCount }}
+          </p>
+        </div>
+      </section>
+
+      <!-- Content -->
+      <section
+        class="overflow-hidden rounded-2xl border border-gray-200 bg-white"
       >
-        <div class="text-lg font-medium text-gray-700">
-          No matching applications
+        <!-- Toolbar -->
+        <div class="border-b border-gray-100 px-5 py-4">
+          <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <!-- Search -->
+            <div class="relative flex-1">
+              <svg
+                class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" />
+              </svg>
+
+              <input
+                v-model="searchQuery"
+                type="text"
+                placeholder="Search applications"
+                class="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-4 text-sm text-gray-800 outline-none transition placeholder:text-gray-400 focus:border-blue-300 focus:bg-white focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+
+            <!-- Filters -->
+            <select
+              v-model="selectedStatus"
+              class="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-600 outline-none hover:bg-gray-50"
+            >
+              <option
+                v-for="status in statusOptions"
+                :key="status"
+                :value="status"
+              >
+                {{ status === "All" ? "All statuses" : status }}
+              </option>
+            </select>
+
+            <select
+              v-model="selectedPlatform"
+              class="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-600 outline-none hover:bg-gray-50"
+            >
+              <option
+                v-for="platform in platformOptions"
+                :key="platform"
+                :value="platform"
+              >
+                {{ platform === "All" ? "All platforms" : platform }}
+              </option>
+            </select>
+
+            <button
+              v-if="
+                searchQuery ||
+                selectedStatus !== 'All' ||
+                selectedPlatform !== 'All'
+              "
+              type="button"
+              class="px-2 text-sm font-medium text-gray-400 hover:text-gray-700"
+              @click="clearFilters"
+            >
+              Clear
+            </button>
+          </div>
+
+          <div class="mt-3 text-xs text-gray-400">
+            {{ filteredApplications.length }}
+            {{
+              filteredApplications.length === 1 ? "application" : "applications"
+            }}
+          </div>
         </div>
 
-        <div class="text-sm text-gray-500 mt-1 mb-4">
-          Try changing your search or filters.
+        <!-- Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[1050px] text-left">
+            <thead>
+              <tr class="border-b border-gray-100 text-xs text-gray-400">
+                <th class="px-5 py-3 font-medium">Role</th>
+
+                <th class="px-5 py-3 font-medium">Location</th>
+
+                <th class="px-5 py-3 font-medium">Source</th>
+
+                <th class="px-5 py-3 font-medium">Applied</th>
+
+                <th class="px-5 py-3 font-medium">Confidence</th>
+
+                <th class="px-5 py-3 font-medium">Status</th>
+
+                <th class="px-5 py-3"></th>
+              </tr>
+            </thead>
+
+            <tbody class="divide-y divide-gray-100">
+              <tr
+                v-for="job in filteredApplications"
+                :key="job.id"
+                class="group transition hover:bg-gray-50/70"
+              >
+                <!-- Role -->
+                <td class="px-5 py-4">
+                  <div class="max-w-[320px]">
+                    <a
+                      v-if="job.jobUrl"
+                      :href="job.jobUrl"
+                      target="_blank"
+                      class="block truncate text-sm font-medium text-gray-900 hover:text-blue-600"
+                    >
+                      {{ job.jobTitle }}
+                    </a>
+
+                    <span
+                      v-else
+                      class="block truncate text-sm font-medium text-gray-900"
+                    >
+                      {{ job.jobTitle }}
+                    </span>
+
+                    <div
+                      class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-400"
+                    >
+                      <span>
+                        {{ job.company }}
+                      </span>
+
+                      <template v-if="job.jobType">
+                        <span>·</span>
+                        <span>
+                          {{ job.jobType }}
+                        </span>
+                      </template>
+
+                      <template v-if="job.salary">
+                        <span>·</span>
+                        <span>
+                          {{ job.salary }}
+                        </span>
+                      </template>
+                    </div>
+                  </div>
+                </td>
+
+                <!-- Location -->
+                <td class="px-5 py-4 text-sm text-gray-500">
+                  {{ job.location || "—" }}
+                </td>
+
+                <!-- Source -->
+                <td class="px-5 py-4">
+                  <div class="text-sm text-gray-600">
+                    {{ job.platform }}
+                  </div>
+
+                  <div class="mt-0.5 text-xs capitalize text-gray-400">
+                    {{ job.source }}
+                  </div>
+                </td>
+
+                <!-- Date -->
+                <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-500">
+                  {{
+                    new Date(job.applicationDate).toLocaleDateString(
+                      undefined,
+                      {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      },
+                    )
+                  }}
+                </td>
+
+                <!-- Confidence -->
+                <td class="px-5 py-4">
+                  <span
+                    v-if="job.source === 'manual'"
+                    class="text-xs text-gray-400"
+                  >
+                    Manual
+                  </span>
+
+                  <div v-else class="space-y-1">
+                    <div class="flex items-center gap-2 text-xs">
+                      <span class="w-9 text-gray-400"> Data </span>
+
+                      <div
+                        class="h-1.5 w-16 overflow-hidden rounded-full bg-gray-100"
+                      >
+                        <div
+                          class="h-full rounded-full bg-blue-500"
+                          :style="{
+                            width: percentage(job.extractionConfidence) + '%',
+                          }"
+                        />
+                      </div>
+
+                      <span class="text-gray-500">
+                        {{ percentage(job.extractionConfidence) }}%
+                      </span>
+                    </div>
+
+                    <div class="flex items-center gap-2 text-xs">
+                      <span class="w-9 text-gray-400"> Apply </span>
+
+                      <div
+                        class="h-1.5 w-16 overflow-hidden rounded-full bg-gray-100"
+                      >
+                        <div
+                          class="h-full rounded-full bg-gray-400"
+                          :style="{
+                            width: percentage(job.applicationConfidence) + '%',
+                          }"
+                        />
+                      </div>
+
+                      <span class="text-gray-500">
+                        {{ percentage(job.applicationConfidence) }}%
+                      </span>
+                    </div>
+
+                    <div
+                      v-if="job.userConfirmed"
+                      class="text-[11px] text-emerald-600"
+                    >
+                      Confirmed
+                    </div>
+                  </div>
+                </td>
+
+                <!-- Status -->
+                <td class="px-5 py-4">
+                  <select
+                    :value="job.status"
+                    :class="[
+                      'rounded-full border px-2.5 py-1.5 text-xs font-medium outline-none',
+                      statusClass(job.status),
+                    ]"
+                    @change="updateStatus(job, $event)"
+                  >
+                    <option value="Saved">Saved</option>
+
+                    <option value="Applied">Applied</option>
+
+                    <option value="Assessment">Assessment</option>
+
+                    <option value="Interview">Interview</option>
+
+                    <option value="Offer">Offer</option>
+
+                    <option value="Rejected">Rejected</option>
+
+                    <option value="Withdrawn">Withdrawn</option>
+                  </select>
+                </td>
+
+                <!-- Actions -->
+                <td class="px-5 py-4">
+                  <div
+                    class="flex justify-end gap-1 opacity-70 transition group-hover:opacity-100"
+                  >
+                    <button
+                      type="button"
+                      class="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+                      title="Edit"
+                      @click="openEditForm(job)"
+                    >
+                      <svg
+                        width="15"
+                        height="15"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path d="M12 20h9" />
+
+                        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                      </svg>
+                    </button>
+
+                    <button
+                      type="button"
+                      class="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
+                      title="Delete"
+                      @click="deleteApp(job.id)"
+                    >
+                      <svg
+                        width="15"
+                        height="15"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path d="M3 6h18" />
+
+                        <path d="M8 6V4h8v2" />
+
+                        <path d="M19 6l-1 14H6L5 6" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
-        <button
-          class="text-blue-600 hover:underline text-sm font-medium"
-          @click="clearFilters"
+        <!-- Empty -->
+        <div v-if="applications.length === 0" class="px-6 py-20 text-center">
+          <div
+            class="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-gray-400"
+          >
+            <svg
+              width="19"
+              height="19"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M12 5v14" />
+              <path d="M5 12h14" />
+            </svg>
+          </div>
+
+          <h3 class="mt-4 text-sm font-medium text-gray-800">
+            No applications yet
+          </h3>
+
+          <p class="mt-1 text-sm text-gray-400">
+            Add one manually or let JobTrack detect your next application.
+          </p>
+
+          <button
+            class="mt-5 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+            @click="openAddForm"
+          >
+            Add application
+          </button>
+        </div>
+
+        <!-- No Match -->
+        <div
+          v-else-if="filteredApplications.length === 0"
+          class="px-6 py-16 text-center"
         >
-          Clear filters
-        </button>
-      </div>
+          <h3 class="text-sm font-medium text-gray-800">No matches found</h3>
+
+          <p class="mt-1 text-sm text-gray-400">
+            Try changing your search or filters.
+          </p>
+
+          <button
+            class="mt-4 text-sm font-medium text-blue-600"
+            @click="clearFilters"
+          >
+            Clear filters
+          </button>
+        </div>
+      </section>
     </div>
 
-    <!-- Application Form -->
     <ApplicationForm
       v-if="showForm"
       :application="editingApplication"
