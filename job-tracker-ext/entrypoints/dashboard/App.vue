@@ -284,8 +284,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50">
-    <div class="mx-auto max-w-[1440px] px-6 py-8 lg:px-10">
+  <div class="min-h-screen bg-[#f8fafc]">
+    <div class="mx-auto max-w-[1320px] px-6 py-8 lg:px-10">
       <!-- Header -->
       <header
         class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center"
@@ -293,7 +293,7 @@ onMounted(async () => {
         <div>
           <div class="flex items-center gap-3">
             <div
-              class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white"
+              class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white"
             >
               <svg
                 width="19"
@@ -343,7 +343,9 @@ onMounted(async () => {
 
       <!-- Stats -->
       <section class="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div class="rounded-2xl border border-gray-200 bg-white p-5">
+        <div
+          class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.02)]"
+        >
           <p class="text-sm text-gray-500">Total</p>
 
           <div class="mt-3 flex items-end justify-between">
@@ -382,7 +384,7 @@ onMounted(async () => {
 
       <!-- Content -->
       <section
-        class="overflow-hidden rounded-2xl border border-gray-200 bg-white"
+        class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.03)]"
       >
         <!-- Toolbar -->
         <div class="border-b border-gray-100 px-5 py-4">

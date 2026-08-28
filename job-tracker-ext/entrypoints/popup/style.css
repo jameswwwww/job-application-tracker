@@ -1,7 +1,14 @@
-@import "tailwindcss/preflight";
-@tailwind utilities;
+@import "tailwindcss";
 
-html {
+/*
+ * Explicitly scan Vue files used by the popup,
+ * dashboard and shared components.
+ */
+@source "../../components/**/*.vue";
+@source "../popup/**/*.vue";
+@source "../dashboard/**/*.vue";
+
+:root {
   font-family:
     Inter,
     ui-sans-serif,
@@ -10,12 +17,24 @@ html {
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
+
+  color: #0f172a;
+  background: #f8fafc;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  min-height: 100%;
 }
 
 body {
-  margin: 0;
-  background: #f9fafb;
-  color: #111827;
+  background: #f8fafc;
+  color: #0f172a;
 }
 
 button,
@@ -27,4 +46,9 @@ textarea {
 
 button {
   -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: #dbeafe;
+  color: #1e3a8a;
 }

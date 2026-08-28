@@ -68,12 +68,12 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="w-[360px] bg-white text-gray-900">
+  <div class="w-[380px] bg-white text-slate-900">
     <!-- Header -->
     <div class="flex items-center justify-between px-5 pt-5 pb-4">
       <div class="flex items-center gap-3">
         <div
-          class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white"
+          class="flex h-10 w-10 items-center justify-center rounded-[14px] bg-slate-900 text-white shadow-sm"
         >
           <svg
             width="18"
@@ -119,7 +119,9 @@ onMounted(async () => {
 
     <!-- Summary -->
     <div class="mx-5 grid grid-cols-2 gap-3">
-      <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+      <div
+        class="rounded-2xl border border-slate-200/80 bg-slate-50/70 px-4 py-3.5"
+      >
         <div class="text-xs text-gray-500">Applications</div>
 
         <div class="mt-1 text-xl font-semibold tracking-tight">
@@ -127,7 +129,9 @@ onMounted(async () => {
         </div>
       </div>
 
-      <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+      <div
+        class="rounded-2xl border border-slate-200/80 bg-slate-50/70 px-4 py-3.5"
+      >
         <div class="text-xs text-gray-500">Interviews</div>
 
         <div class="mt-1 text-xl font-semibold tracking-tight">
@@ -225,7 +229,7 @@ onMounted(async () => {
     <div class="mt-4 border-t border-gray-100 p-4">
       <button
         type="button"
-        class="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
+        class="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 active:scale-[0.99]"
         @click="addManualApplication"
       >
         <svg

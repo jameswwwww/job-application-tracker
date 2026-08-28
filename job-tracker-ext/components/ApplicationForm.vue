@@ -147,187 +147,289 @@ function submit() {
 
 <template>
   <div
-    class="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px]"
+    @click.self="emit('cancel')"
   >
     <div
-      class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+      role="dialog"
+      aria-modal="true"
+      class="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
     >
+      <!-- Header -->
       <div
-        class="flex justify-between items-center px-6 py-4 border-b border-gray-200"
+        class="flex shrink-0 items-start justify-between border-b border-slate-100 px-6 py-5"
       >
-        <h2 class="text-xl font-bold text-gray-900">
-          {{ title }}
-        </h2>
+        <div>
+          <h2
+            class="m-0 text-lg font-semibold tracking-[-0.015em] text-slate-900"
+          >
+            {{ title }}
+          </h2>
+
+          <p class="mb-0 mt-1 text-sm text-slate-500">
+            {{
+              application
+                ? "Update the details for this application."
+                : "Add an opportunity to your application tracker."
+            }}
+          </p>
+        </div>
 
         <button
           type="button"
-          class="text-gray-400 hover:text-gray-700 text-2xl"
+          aria-label="Close"
+          class="flex h-9 w-9 items-center justify-center rounded-lg border-0 bg-transparent text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
           @click="emit('cancel')"
         >
-          ×
+          <svg
+            width="17"
+            height="17"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M18 6 6 18" />
+            <path d="m6 6 12 12" />
+          </svg>
         </button>
       </div>
 
-      <form class="p-6 space-y-5" @submit.prevent="submit">
-        <div
-          v-if="error"
-          class="p-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200"
-        >
-          {{ error }}
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Job Title *
-            </label>
-
-            <input
-              v-model="form.jobTitle"
-              required
-              type="text"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2"
-              placeholder="Software Engineer"
-            />
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Company *
-            </label>
-
-            <input
-              v-model="form.company"
-              required
-              type="text"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2"
-              placeholder="Grab"
-            />
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Location
-            </label>
-
-            <input
-              v-model="form.location"
-              type="text"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2"
-              placeholder="Kuala Lumpur"
-            />
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Salary
-            </label>
-
-            <input
-              v-model="form.salary"
-              type="text"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2"
-              placeholder="RM 5,000 – RM 7,000"
-            />
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Job Type
-            </label>
-
-            <input
-              v-model="form.jobType"
-              type="text"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2"
-              placeholder="Full-time"
-            />
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Platform
-            </label>
-
-            <select
-              v-model="form.platform"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2"
+      <!-- Form -->
+      <form class="min-h-0 flex-1 overflow-y-auto" @submit.prevent="submit">
+        <div class="space-y-7 px-6 py-6">
+          <!-- Error -->
+          <div
+            v-if="error"
+            class="flex gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          >
+            <svg
+              class="mt-0.5 shrink-0"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
             >
-              <option
-                v-for="platform in platforms"
-                :key="platform"
-                :value="platform"
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 8v4" />
+              <path d="M12 16h.01" />
+            </svg>
+
+            {{ error }}
+          </div>
+
+          <!-- Role details -->
+          <section>
+            <div class="mb-4">
+              <h3 class="m-0 text-sm font-semibold text-slate-800">
+                Role details
+              </h3>
+
+              <p class="mb-0 mt-1 text-xs text-slate-400">
+                Basic information about the position.
+              </p>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label
+                  for="jobTitle"
+                  class="mb-1.5 block text-[13px] font-medium text-slate-700"
+                >
+                  Job title
+                  <span class="text-red-400">*</span>
+                </label>
+
+                <input
+                  id="jobTitle"
+                  v-model="form.jobTitle"
+                  required
+                  type="text"
+                  placeholder="e.g. Software Engineer"
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+                />
+              </div>
+
+              <div>
+                <label
+                  for="company"
+                  class="mb-1.5 block text-[13px] font-medium text-slate-700"
+                >
+                  Company
+                  <span class="text-red-400">*</span>
+                </label>
+
+                <input
+                  id="company"
+                  v-model="form.company"
+                  required
+                  type="text"
+                  placeholder="e.g. Grab"
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+                />
+              </div>
+
+              <div>
+                <label
+                  class="mb-1.5 block text-[13px] font-medium text-slate-700"
+                >
+                  Location
+                </label>
+
+                <input
+                  v-model="form.location"
+                  type="text"
+                  placeholder="e.g. Kuala Lumpur"
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+                />
+              </div>
+
+              <div>
+                <label
+                  class="mb-1.5 block text-[13px] font-medium text-slate-700"
+                >
+                  Salary
+                </label>
+
+                <input
+                  v-model="form.salary"
+                  type="text"
+                  placeholder="e.g. RM 5,000 – RM 7,000"
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+                />
+              </div>
+
+              <div>
+                <label
+                  class="mb-1.5 block text-[13px] font-medium text-slate-700"
+                >
+                  Job type
+                </label>
+
+                <input
+                  v-model="form.jobType"
+                  type="text"
+                  placeholder="e.g. Full-time"
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+                />
+              </div>
+
+              <div>
+                <label
+                  class="mb-1.5 block text-[13px] font-medium text-slate-700"
+                >
+                  Platform
+                </label>
+
+                <select
+                  v-model="form.platform"
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 outline-none transition hover:border-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+                >
+                  <option
+                    v-for="platform in platforms"
+                    :key="platform"
+                    :value="platform"
+                  >
+                    {{ platform }}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mt-4">
+              <label
+                class="mb-1.5 block text-[13px] font-medium text-slate-700"
               >
-                {{ platform }}
-              </option>
-            </select>
-          </div>
+                Job URL
+              </label>
+
+              <input
+                v-model="form.jobUrl"
+                type="url"
+                placeholder="https://..."
+                class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+              />
+            </div>
+          </section>
+
+          <div class="h-px bg-slate-100" />
+
+          <!-- Application -->
+          <section>
+            <div class="mb-4">
+              <h3 class="m-0 text-sm font-semibold text-slate-800">
+                Application
+              </h3>
+
+              <p class="mb-0 mt-1 text-xs text-slate-400">
+                Track when you applied and where you are in the process.
+              </p>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label
+                  class="mb-1.5 block text-[13px] font-medium text-slate-700"
+                >
+                  Application date
+                </label>
+
+                <input
+                  v-model="form.applicationDate"
+                  type="date"
+                  required
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 outline-none transition hover:border-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+                />
+              </div>
+
+              <div>
+                <label
+                  class="mb-1.5 block text-[13px] font-medium text-slate-700"
+                >
+                  Status
+                </label>
+
+                <select
+                  v-model="form.status"
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 outline-none transition hover:border-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+                >
+                  <option
+                    v-for="status in statuses"
+                    :key="status"
+                    :value="status"
+                  >
+                    {{ status }}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mt-4">
+              <label
+                class="mb-1.5 block text-[13px] font-medium text-slate-700"
+              >
+                Notes
+              </label>
+
+              <textarea
+                v-model="form.notes"
+                rows="4"
+                placeholder="Add interview notes, recruiter details, reminders..."
+                class="w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm leading-6 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+              />
+            </div>
+          </section>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            Job URL
-          </label>
-
-          <input
-            v-model="form.jobUrl"
-            type="url"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2"
-            placeholder="https://..."
-          />
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Application Date
-            </label>
-
-            <input
-              v-model="form.applicationDate"
-              type="date"
-              required
-              class="w-full border border-gray-300 rounded-lg px-3 py-2"
-            />
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Status
-            </label>
-
-            <select
-              v-model="form.status"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2"
-            >
-              <option v-for="status in statuses" :key="status" :value="status">
-                {{ status }}
-              </option>
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            Notes
-          </label>
-
-          <textarea
-            v-model="form.notes"
-            rows="4"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2"
-            placeholder="Recruiter contacted me, interview notes, etc."
-          />
-        </div>
-
-        <div class="flex justify-end gap-3 pt-2">
+        <!-- Sticky Footer -->
+        <div
+          class="sticky bottom-0 flex items-center justify-end gap-2.5 border-t border-slate-100 bg-white/95 px-6 py-4 backdrop-blur"
+        >
           <button
             type="button"
-            class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+            class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
             @click="emit('cancel')"
           >
             Cancel
@@ -335,7 +437,7 @@ function submit() {
 
           <button
             type="submit"
-            class="px-5 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
+            class="rounded-xl border-0 bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 active:scale-[0.98]"
           >
             {{ submitLabel }}
           </button>
