@@ -2,7 +2,7 @@ import type { SiteAdapter } from "../BaseAdapter";
 import type { JobApplication } from "../../types";
 
 export class GreenhouseAdapter implements SiteAdapter {
-  platformName: JobApplication["platform"] = "Other"; // Or create an 'ATS' category
+  platformName: JobApplication["platform"] = "Greenhouse"; // Or create an 'ATS' category
 
   extractJobDetails(): Partial<JobApplication> | null {
     const titleNode = document.querySelector("h1.app-title");
@@ -13,13 +13,23 @@ export class GreenhouseAdapter implements SiteAdapter {
 
     return {
       jobTitle: titleNode.textContent?.trim() || "",
+
       company:
         companyNode?.textContent?.replace("at", "").trim() ||
         document.title.split("-")[0]?.trim() ||
         "",
+
       location: locationNode?.textContent?.trim() || null,
+
+      salary: null,
+      jobType: null,
+
       jobUrl: window.location.href.split("?")[0],
-      platform: "Other",
+
+      platform: this.platformName,
+
+      extractionConfidence: 0.9,
+      extractionMethod: "platform-dom",
     };
   }
 

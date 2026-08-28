@@ -22,8 +22,14 @@ export class JobStreetAdapter implements SiteAdapter {
       jobTitle: titleNode.textContent?.trim() || "",
       company: companyNode.textContent?.trim() || "",
       location: locationNode?.textContent?.trim() || null,
-      jobUrl: window.location.href.split("?")[0], // Strip tracking parameters
+      salary: null,
+      jobType: null,
+
+      jobUrl: window.location.href.split("?")[0],
       platform: this.platformName,
+
+      extractionConfidence: 0.95,
+      extractionMethod: "platform-dom",
     };
   }
 

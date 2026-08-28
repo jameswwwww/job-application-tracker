@@ -2,34 +2,62 @@ import { db } from "./db";
 import type { JobApplication } from "../types";
 import { v4 as uuidv4 } from "uuid";
 
-export async function processDetectedApplication(
-  payload: Omit<JobApplication, "id">,
-) {
-  // 1. Duplicate Check: Look for the exact same company and job title
+type NewApplication = Omit<JobApplication, "id" | "createdAt" | "updatedAt">;
+
+export async function processDetectedApplication(payload: NewApplication) {
   const existingApp = await db.applications
     .where("[company+jobTitle]")
     .equals([payload.company, payload.jobTitle])
     .first();
 
+  const now = new Date().toISOString();
+
   if (existingApp) {
-    console.log("Duplicate detected. Updating existing record instead.");
-    // If the new event has a higher confidence score or progressed status, update it
-    return await db.applications.update(existingApp.id, {
+    console.log(
+      "Job Tracker: Duplicate detected. Updating existing application.",
+    );
+
+    await db.applications.update(existingApp.id, {
       status: payload.status,
-      confidenceScore: Math.max(
-        existingApp.confidenceScore,
-        payload.confidenceScore,
+
+      applicationDate: payload.applicationDate,
+
+      extractionConfidence: Math.max(
+        existingApp.extractionConfidence ?? 0,
+        payload.extractionConfidence,
       ),
-      applicationDate: payload.applicationDate, // refresh date to latest interaction
+
+      applicationConfidence: Math.max(
+        existingApp.applicationConfidence ?? 0,
+        payload.applicationConfidence,
+      ),
+
+      userConfirmed: existingApp.userConfirmed || payload.userConfirmed,
+
+      location: payload.location || existingApp.location,
+
+      salary: payload.salary || existingApp.salary,
+
+      jobType: payload.jobType || existingApp.jobType,
+
+      updatedAt: now,
     });
+
+    return existingApp.id;
   }
 
-  // 2. Insert New Application
   const newApp: JobApplication = {
     ...payload,
+
     id: uuidv4(),
+
+    createdAt: now,
+    updatedAt: now,
   };
 
-  console.log("Saving new job application:", newApp);
-  return await db.applications.add(newApp);
+  console.log("Job Tracker: Saving new application:", newApp);
+
+  await db.applications.add(newApp);
+
+  return newApp.id;
 }

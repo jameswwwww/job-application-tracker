@@ -20,10 +20,20 @@ export class GenericAdapter implements SiteAdapter {
           if (item["@type"] === "JobPosting") {
             return {
               jobTitle: item.title,
+
               company: item.hiringOrganization?.name || document.title,
+
               location: item.jobLocation?.address?.addressLocality || null,
+
+              salary: null,
+              jobType: item.employmentType || null,
+
               jobUrl: window.location.href,
+
               platform: this.platformName,
+
+              extractionConfidence: 0.9,
+              extractionMethod: "json-ld",
             };
           }
         }
@@ -44,9 +54,19 @@ export class GenericAdapter implements SiteAdapter {
 
       return {
         jobTitle: titleMatch.trim(),
+
         company: companyName || document.title.trim() || "Unknown Company",
+
+        location: null,
+        salary: null,
+        jobType: null,
+
         jobUrl: window.location.href,
+
         platform: this.platformName,
+
+        extractionConfidence: 0.55,
+        extractionMethod: "generic-dom",
       };
     }
 

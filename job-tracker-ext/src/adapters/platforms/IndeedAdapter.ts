@@ -31,8 +31,14 @@ export class IndeedAdapter implements SiteAdapter {
       jobTitle: titleNode.textContent?.trim() || "",
       company: companyNode.textContent?.trim() || "",
       location: locationNode?.textContent?.trim() || null,
+      salary: null,
+      jobType: null,
+
       jobUrl: cleanUrl,
       platform: this.platformName,
+
+      extractionConfidence: 0.95,
+      extractionMethod: "platform-dom",
     };
   }
 

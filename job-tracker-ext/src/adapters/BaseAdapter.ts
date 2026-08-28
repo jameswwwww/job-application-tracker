@@ -3,9 +3,19 @@ import type { JobApplication } from "../types";
 export interface SiteAdapter {
   platformName: JobApplication["platform"];
 
-  // Scrapes the DOM for job details
+  /**
+   * Extract job information from the current webpage.
+   */
   extractJobDetails(): Partial<JobApplication> | null;
 
-  // Listens to the DOM for form submissions or success modals
-  observeApplicationProcess(onDetected: (confidence: number) => void): void;
+  /**
+   * Detect signals that suggest the user submitted an application.
+   *
+   * confidence:
+   * 0.0 = almost no confidence
+   * 1.0 = confirmed submission
+   */
+  observeApplicationProcess(
+    onDetected: (applicationConfidence: number) => void,
+  ): void;
 }
