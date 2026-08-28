@@ -60,3 +60,17 @@ export interface JobApplication {
   createdAt: string;
   updatedAt: string;
 }
+
+export type ApplicationFormValues = Pick<
+  JobApplication,
+  | "company"
+  | "jobTitle"
+  | "location"
+  | "salary"
+  | "jobType"
+  | "platform"
+  | "jobUrl"
+  | "applicationDate"
+  | "status"
+  | "notes"
+>;
