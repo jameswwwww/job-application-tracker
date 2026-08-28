@@ -8,6 +8,7 @@ export default defineContentScript({
 
   excludeMatches: [
     "*://*.linkedin.com/*",
+    "*://*.jobstreet.com/*",
     "*://*.jobstreet.com.my/*",
     "*://*.indeed.com/*",
   ],

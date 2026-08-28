@@ -1,43 +1,101 @@
 import type { SiteAdapter } from "../BaseAdapter";
 import type { JobApplication } from "../../types";
 
+import {
+  calculateExtractionConfidence,
+  extractJobTypeFromText,
+  extractSalaryFromText,
+  getJobPostingJsonLd,
+  getLocationFromJsonLd,
+  getSalaryFromJsonLd,
+  getTextFromSelectors,
+} from "../../utils/extraction";
+
 export class IndeedAdapter implements SiteAdapter {
   platformName: JobApplication["platform"] = "Indeed";
 
   extractJobDetails(): Partial<JobApplication> | null {
-    // Indeed uses reliable data-testid attributes for their core job header
-    const titleNode = document.querySelector(
-      '[data-testid="jobsearch-JobInfoHeader-title"]',
-    );
-    const companyNode = document.querySelector(
-      '[data-testid="inlineHeader-companyName"]',
-    );
-    const locationNode = document.querySelector(
-      '[data-testid="inlineHeader-companyLocation"]',
-    );
+    const jsonLd = getJobPostingJsonLd();
 
-    if (!titleNode || !companyNode) return null;
+    const jobTitle =
+      getTextFromSelectors([
+        'h1[data-testid="jobTitle"]',
+        '[data-testid="jobsearch-JobInfoHeader-title"]',
+        "h1.jobsearch-JobInfoHeader-title",
+        "h1",
+      ]) ||
+      jsonLd?.title ||
+      null;
 
-    // Clean up the URL: Indeed appends massive tracking strings (e.g., ?vjk=...&from=...)
-    // We want the clean viewjob URL if possible
-    let cleanUrl = window.location.href;
-    const urlObj = new URL(cleanUrl);
-    const vjk = urlObj.searchParams.get("vjk");
-    if (vjk) {
-      cleanUrl = `${urlObj.origin}/viewjob?jk=${vjk}`;
+    const company =
+      getTextFromSelectors([
+        '[data-testid="inlineHeader-companyName"]',
+        '[data-company-name="true"]',
+        ".jobsearch-InlineCompanyRating-companyHeader",
+      ]) ||
+      jsonLd?.hiringOrganization?.name ||
+      null;
+
+    const location =
+      getTextFromSelectors([
+        '[data-testid="job-location"]',
+        '[data-testid="inlineHeader-companyLocation"]',
+        ".jobsearch-JobInfoHeader-subtitle div",
+      ]) || getLocationFromJsonLd(jsonLd);
+
+    const salaryAndType = getTextFromSelectors([
+      "#salaryInfoAndJobType",
+      '[data-testid="jobsearch-JobInfoHeader-salary"]',
+    ]);
+
+    const salary =
+      extractSalaryFromText(salaryAndType) || getSalaryFromJsonLd(jsonLd);
+
+    const jobType =
+      extractJobTypeFromText(salaryAndType) || jsonLd?.employmentType || null;
+
+    if (!jobTitle || !company) {
+      return null;
     }
 
+    let cleanUrl = window.location.href;
+
+    try {
+      const url = new URL(window.location.href);
+
+      const jobKey = url.searchParams.get("jk") || url.searchParams.get("vjk");
+
+      if (jobKey) {
+        cleanUrl = `${url.origin}/viewjob?jk=${jobKey}`;
+      }
+    } catch {
+      // Keep original URL
+    }
+
+    const extractionConfidence = calculateExtractionConfidence(
+      {
+        jobTitle,
+        company,
+        location,
+        salary,
+        jobType,
+      },
+      0.98,
+    );
+
     return {
-      jobTitle: titleNode.textContent?.trim() || "",
-      company: companyNode.textContent?.trim() || "",
-      location: locationNode?.textContent?.trim() || null,
-      salary: null,
-      jobType: null,
+      jobTitle,
+      company,
+      location,
+      salary,
+      jobType,
 
       jobUrl: cleanUrl,
+
       platform: this.platformName,
 
-      extractionConfidence: 0.95,
+      extractionConfidence,
+
       extractionMethod: "platform-dom",
     };
   }

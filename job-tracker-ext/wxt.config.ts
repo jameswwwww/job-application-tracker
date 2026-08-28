@@ -15,6 +15,7 @@ export default defineConfig({
     permissions: ["storage", "activeTab", "scripting"],
     host_permissions: [
       "*://*.linkedin.com/*",
+      "*://*.jobstreet.com/*",
       "*://*.jobstreet.com.my/*",
       "*://*.indeed.com/*",
       "<all_urls>",

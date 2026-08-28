@@ -1,76 +1,150 @@
 import type { SiteAdapter } from "./BaseAdapter";
 import type { JobApplication } from "../types";
 
+import {
+  calculateExtractionConfidence,
+  extractJobTypeFromText,
+  extractSalaryFromText,
+  getJobPostingJsonLd,
+  getLocationFromJsonLd,
+  getSalaryFromJsonLd,
+  getTextFromSelectors,
+} from "../utils/extraction";
+
 export class GenericAdapter implements SiteAdapter {
   platformName: JobApplication["platform"] = "CompanySite";
 
   extractJobDetails(): Partial<JobApplication> | null {
-    // 1. Look for structured JSON-LD data
-    const jsonLdScripts = document.querySelectorAll(
-      'script[type="application/ld+json"]',
-    );
+    const jsonLd = getJobPostingJsonLd();
 
-    for (const script of jsonLdScripts) {
-      try {
-        const data = JSON.parse(script.textContent || "{}");
-        // Handle both single objects and arrays of objects
-        const items = Array.isArray(data) ? data : [data];
+    // Best generic source:
+    // Schema.org JobPosting
+    if (jsonLd) {
+      const jobTitle = jsonLd.title || null;
 
-        for (const item of items) {
-          if (item["@type"] === "JobPosting") {
-            return {
-              jobTitle: item.title,
+      const company = jsonLd.hiringOrganization?.name || null;
 
-              company: item.hiringOrganization?.name || document.title,
+      const location = getLocationFromJsonLd(jsonLd);
 
-              location: item.jobLocation?.address?.addressLocality || null,
+      const salary = getSalaryFromJsonLd(jsonLd);
 
-              salary: null,
-              jobType: item.employmentType || null,
+      const jobType = Array.isArray(jsonLd.employmentType)
+        ? jsonLd.employmentType.join(", ")
+        : jsonLd.employmentType || null;
 
-              jobUrl: window.location.href,
-
-              platform: this.platformName,
-
-              extractionConfidence: 0.9,
-              extractionMethod: "json-ld",
-            };
-          }
-        }
-      } catch (e) {
-        console.warn("JobTrack: Failed to parse JSON-LD", e);
+      if (!jobTitle) {
+        return null;
       }
-    }
 
-    // 2. DOM Heuristics Fallback (if no JSON-LD is found)
-    // This is a basic example; it can be expanded significantly.
-    const titleMatch = document.querySelector("h1")?.textContent;
-    if (
-      titleMatch &&
-      (document.title.toLowerCase().includes("job") ||
-        document.title.toLowerCase().includes("career"))
-    ) {
-      const companyName = document.title.split("|")[0]?.split("-")[0]?.trim();
+      const finalCompany =
+        company ||
+        getTextFromSelectors(['meta[property="og:site_name"]']) ||
+        "Unknown Company";
 
       return {
-        jobTitle: titleMatch.trim(),
+        jobTitle,
 
-        company: companyName || document.title.trim() || "Unknown Company",
+        company: finalCompany,
 
-        location: null,
-        salary: null,
-        jobType: null,
+        location,
+        salary,
+        jobType,
 
         jobUrl: window.location.href,
 
         platform: this.platformName,
 
-        extractionConfidence: 0.55,
-        extractionMethod: "generic-dom",
+        extractionConfidence: calculateExtractionConfidence(
+          {
+            jobTitle,
+            company: finalCompany,
+            location,
+            salary,
+            jobType,
+          },
+          0.95,
+        ),
+
+        extractionMethod: "json-ld",
       };
     }
 
-    return null;
+    // Generic DOM fallback
+    const title = getTextFromSelectors([
+      '[data-testid*="job-title"]',
+      '[class*="job-title"] h1',
+      '[class*="job-title"]',
+      "main h1",
+      "h1",
+    ]);
+
+    if (!title) {
+      return null;
+    }
+
+    const pageTitle = document.title.toLowerCase();
+
+    const pageLooksLikeJob =
+      pageTitle.includes("job") ||
+      pageTitle.includes("career") ||
+      pageTitle.includes("position") ||
+      document.body.innerText.toLowerCase().includes("apply");
+
+    if (!pageLooksLikeJob) {
+      return null;
+    }
+
+    const company =
+      getTextFromSelectors([
+        '[data-testid*="company"]',
+        '[class*="company-name"]',
+        '[class*="employer-name"]',
+        'meta[property="og:site_name"]',
+      ]) ||
+      document.title.split("|")[0]?.split("-")[0]?.trim() ||
+      "Unknown Company";
+
+    const location = getTextFromSelectors([
+      '[data-testid*="location"]',
+      '[class*="job-location"]',
+      '[class*="location"]',
+    ]);
+
+    const jobArea =
+      document.querySelector(
+        "main, article, #job-description, .job-description",
+      ) || document.body;
+
+    const jobAreaText = jobArea.textContent || "";
+
+    const salary = extractSalaryFromText(jobAreaText);
+
+    const jobType = extractJobTypeFromText(jobAreaText);
+
+    return {
+      jobTitle: title,
+      company,
+      location,
+      salary,
+      jobType,
+
+      jobUrl: window.location.href,
+
+      platform: this.platformName,
+
+      extractionConfidence: calculateExtractionConfidence(
+        {
+          jobTitle: title,
+          company,
+          location,
+          salary,
+          jobType,
+        },
+        0.65,
+      ),
+
+      extractionMethod: "generic-dom",
+    };
   }
 
   observeApplicationProcess(onDetected: (confidence: number) => void): void {

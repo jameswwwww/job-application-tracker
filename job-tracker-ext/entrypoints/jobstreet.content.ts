@@ -3,7 +3,7 @@ import { setupApplicationTracking } from "../src/utils/applicationHandler";
 import "../assets/content.css";
 
 export default defineContentScript({
-  matches: ["*://*.jobstreet.com.my/*"],
+  matches: ["*://*.jobstreet.com/*", "*://*.jobstreet.com.my/*"],
 
   cssInjectionMode: "ui",
 
@@ -11,6 +11,13 @@ export default defineContentScript({
     console.log("Job Tracker: JobStreet Content Script Injected");
 
     const adapter = new JobStreetAdapter();
+
+    // TEMP DEBUG
+    const jobDetails = adapter.extractJobDetails();
+
+    console.log("Job Tracker: Extracted JobStreet details:", jobDetails);
+
+    console.table(jobDetails);
 
     setupApplicationTracking(ctx, adapter);
   },

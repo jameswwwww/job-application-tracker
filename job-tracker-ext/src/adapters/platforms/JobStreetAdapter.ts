@@ -1,34 +1,101 @@
 import type { SiteAdapter } from "../BaseAdapter";
 import type { JobApplication } from "../../types";
 
+import {
+  calculateExtractionConfidence,
+  extractJobTypeFromText,
+  extractSalaryFromText,
+  getCombinedText,
+  getJobPostingJsonLd,
+  getLocationFromJsonLd,
+  getSalaryFromJsonLd,
+  getTextFromSelectors,
+} from "../../utils/extraction";
+
 export class JobStreetAdapter implements SiteAdapter {
   platformName: JobApplication["platform"] = "JobStreet";
 
   extractJobDetails(): Partial<JobApplication> | null {
-    // SEEK's React DOM uses data-automation tags which are highly stable
-    const titleNode = document.querySelector(
-      '[data-automation="job-detail-title"]',
-    );
-    const companyNode = document.querySelector(
-      '[data-automation="advertiser-name"]',
-    );
-    const locationNode = document.querySelector(
-      '[data-automation="job-detail-location"]',
+    const jsonLd = getJobPostingJsonLd();
+
+    const jobTitle =
+      getTextFromSelectors([
+        '[data-automation="job-detail-title"]',
+        'h1[data-automation*="title"]',
+        "h1",
+      ]) ||
+      jsonLd?.title ||
+      null;
+
+    const company =
+      getTextFromSelectors([
+        '[data-automation="advertiser-name"]',
+        '[data-automation*="advertiser"]',
+        '[data-automation*="company"]',
+      ]) ||
+      jsonLd?.hiringOrganization?.name ||
+      null;
+
+    const locationNode = document.querySelector<HTMLAnchorElement>(
+      '[data-automation="job-detail-location"] a',
     );
 
-    if (!titleNode || !companyNode) return null;
+    const location =
+      locationNode?.textContent?.trim() ||
+      getTextFromSelectors([
+        '[data-automation="job-detail-location"]',
+        '[data-automation*="location"] a',
+        '[data-automation*="location"]',
+      ]) ||
+      getLocationFromJsonLd(jsonLd);
+
+    const detailsText = getCombinedText([
+      '[data-automation="job-detail-salary"]',
+      '[data-automation="job-detail-work-type"]',
+      '[data-automation*="salary"]',
+      '[data-automation*="work-type"]',
+      '[data-automation*="job-detail"]',
+    ]);
+
+    const salary =
+      getTextFromSelectors(['[data-automation="job-detail-salary"]']) ||
+      extractSalaryFromText(detailsText) ||
+      getSalaryFromJsonLd(jsonLd);
+
+    const jobType =
+      getTextFromSelectors(['[data-automation="job-detail-work-type"]']) ||
+      extractJobTypeFromText(detailsText) ||
+      jsonLd?.employmentType ||
+      null;
+
+    if (!jobTitle || !company) {
+      return null;
+    }
+
+    const extractionConfidence = calculateExtractionConfidence(
+      {
+        jobTitle,
+        company,
+        location,
+        salary,
+        jobType,
+      },
+      0.98,
+    );
 
     return {
-      jobTitle: titleNode.textContent?.trim() || "",
-      company: companyNode.textContent?.trim() || "",
-      location: locationNode?.textContent?.trim() || null,
-      salary: null,
-      jobType: null,
+      jobTitle,
+      company,
+      location,
+      salary,
+      jobType,
 
       jobUrl: window.location.href.split("?")[0],
+
       platform: this.platformName,
 
-      extractionConfidence: 0.95,
+      extractionConfidence,
+
       extractionMethod: "platform-dom",
     };
   }

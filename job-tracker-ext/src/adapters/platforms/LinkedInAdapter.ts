@@ -1,35 +1,89 @@
 import type { SiteAdapter } from "../BaseAdapter";
 import type { JobApplication } from "../../types";
 
+import {
+  calculateExtractionConfidence,
+  extractJobTypeFromText,
+  extractSalaryFromText,
+  getCombinedText,
+  getJobPostingJsonLd,
+  getLocationFromJsonLd,
+  getSalaryFromJsonLd,
+  getTextFromSelectors,
+} from "../../utils/extraction";
+
 export class LinkedInAdapter implements SiteAdapter {
   platformName: JobApplication["platform"] = "LinkedIn";
 
   extractJobDetails(): Partial<JobApplication> | null {
-    // Note: LinkedIn changes these class names occasionally.
-    // We use broad selectors to increase resilience.
-    const titleNode = document.querySelector(
-      ".job-details-jobs-unified-top-card__job-title h1",
-    );
-    const companyNode = document.querySelector(
-      ".job-details-jobs-unified-top-card__company-name a",
-    );
-    const locationNode = document.querySelector(
-      ".job-details-jobs-unified-top-card__primary-description span",
-    );
+    const jsonLd = getJobPostingJsonLd();
 
-    if (!titleNode || !companyNode) return null;
+    const jobTitle =
+      getTextFromSelectors([
+        ".job-details-jobs-unified-top-card__job-title h1",
+        ".job-details-jobs-unified-top-card__job-title",
+        "h1.t-24",
+        "h1",
+      ]) ||
+      jsonLd?.title ||
+      null;
+
+    const company =
+      getTextFromSelectors([
+        ".job-details-jobs-unified-top-card__company-name a",
+        ".job-details-jobs-unified-top-card__company-name",
+        '[class*="company-name"] a',
+        '[class*="company-name"]',
+      ]) ||
+      jsonLd?.hiringOrganization?.name ||
+      null;
+
+    const location =
+      getTextFromSelectors([
+        ".job-details-jobs-unified-top-card__primary-description-container .tvm__text",
+        ".job-details-jobs-unified-top-card__primary-description span",
+        '[class*="job-location"]',
+      ]) || getLocationFromJsonLd(jsonLd);
+
+    const insightText = getCombinedText([
+      ".job-details-jobs-unified-top-card__job-insight",
+      '[class*="job-insight"]',
+    ]);
+
+    const salary =
+      extractSalaryFromText(insightText) || getSalaryFromJsonLd(jsonLd);
+
+    const jobType =
+      extractJobTypeFromText(insightText) || jsonLd?.employmentType || null;
+
+    if (!jobTitle || !company) {
+      return null;
+    }
+
+    const extractionConfidence = calculateExtractionConfidence(
+      {
+        jobTitle,
+        company,
+        location,
+        salary,
+        jobType,
+      },
+      0.98,
+    );
 
     return {
-      jobTitle: titleNode.textContent?.trim() || "",
-      company: companyNode.textContent?.trim() || "",
-      location: locationNode?.textContent?.trim() || null,
-      salary: null,
-      jobType: null,
+      jobTitle,
+      company,
+      location,
+      salary,
+      jobType,
 
       jobUrl: window.location.href.split("?")[0],
+
       platform: this.platformName,
 
-      extractionConfidence: 0.95,
+      extractionConfidence,
+
       extractionMethod: "platform-dom",
     };
   }
