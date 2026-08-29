@@ -1,6 +1,6 @@
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import type { SiteAdapter } from "../adapters/BaseAdapter";
-import type { JobApplication } from "../types";
+import type { JobApplication, NewApplicationPayload } from "../types";
 import { promptUserForConfirmation } from "./uiInjector";
 
 export function setupApplicationTracking(
@@ -42,7 +42,7 @@ export function setupApplicationTracking(
 
     const now = new Date().toISOString();
 
-    const payload: Omit<JobApplication, "id" | "createdAt" | "updatedAt"> = {
+    const payload: NewApplicationPayload = {
       company: jobDetails.company || "Unknown Company",
       jobTitle: jobDetails.jobTitle || "Unknown Role",
 

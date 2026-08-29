@@ -342,9 +342,13 @@ async function syncNow() {
   syncError.value = null;
 
   try {
-    await browser.runtime.sendMessage({
+    const response = await browser.runtime.sendMessage({
       type: "SYNC_NOW",
     });
+
+    if (response?.status !== "Success") {
+      throw new Error(response?.message || "Sync failed.");
+    }
 
     await loadApplications();
 

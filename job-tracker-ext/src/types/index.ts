@@ -86,3 +86,8 @@ export type ApplicationFormValues = Pick<
 >;
 
 export type SyncState = "local" | "pending" | "synced";
+
+export type NewApplicationPayload = Omit<
+  JobApplication,
+  "id" | "ownerKey" | "syncState" | "deletedAt" | "createdAt" | "updatedAt"
+>;

@@ -1,16 +1,15 @@
 import { db } from "./db";
-import type { JobApplication, ApplicationFormValues } from "../types";
+import type {
+  JobApplication,
+  ApplicationFormValues,
+  NewApplicationPayload,
+} from "../types";
 import { v4 as uuidv4 } from "uuid";
 import {
   GUEST_OWNER_KEY,
   getCurrentOwnerKey,
   syncApplication,
 } from "./syncService";
-
-type NewApplication = Omit<
-  JobApplication,
-  "id" | "ownerKey" | "syncState" | "deletedAt" | "createdAt" | "updatedAt"
->;
 
 export async function createManualApplication(values: ApplicationFormValues) {
   const ownerKey = await getCurrentOwnerKey();
@@ -134,7 +133,9 @@ export async function updateApplication(
   return id;
 }
 
-export async function processDetectedApplication(payload: NewApplication) {
+export async function processDetectedApplication(
+  payload: NewApplicationPayload,
+) {
   const ownerKey = await getCurrentOwnerKey();
   const existingApp = await db.applications
     .where("[ownerKey+company+jobTitle]")

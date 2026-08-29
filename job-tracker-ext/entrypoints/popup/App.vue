@@ -8,6 +8,10 @@ import {
 
 import type { JobApplication } from "../../src/types";
 
+import { getSessionUserId } from "../../src/services/authService";
+
+const isSignedIn = ref(false);
+
 const applications = ref<JobApplication[]>([]);
 
 async function loadApplications() {
@@ -247,12 +251,17 @@ onMounted(async () => {
         </div>
       </div>
       <button
+        v-if="!isSignedIn"
         type="button"
         class="w-full rounded-xl px-4 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50"
         @click="openLogin"
       >
         Sign in to sync
       </button>
+
+      <div v-else class="py-2 text-center text-xs font-medium text-emerald-600">
+        ● Cloud sync enabled
+      </div>
     </div>
 
     <!-- Footer Actions -->

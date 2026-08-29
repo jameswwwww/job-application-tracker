@@ -140,18 +140,6 @@ function fromCloudRow(row: CloudApplicationRow): JobApplication {
   };
 }
 
-async function deleteCloudApplication(id: string, userId: string) {
-  const { error } = await supabase
-    .from("applications")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", userId);
-
-  if (error) {
-    throw error;
-  }
-}
-
 async function uploadApplication(application: JobApplication, userId: string) {
   const row = toCloudRow(application, userId);
 
@@ -305,28 +293,6 @@ export async function syncCurrentUserApplications(): Promise<SyncResult> {
     .toArray();
 
   for (const localApplication of localApplications) {
-    // -------------------------
-    // Pending deletion
-    // -------------------------
-
-    if (localApplication.deletedAt) {
-      try {
-        await deleteCloudApplication(localApplication.id, userId);
-
-        await db.applications.delete(localApplication.id);
-
-        cloudMap.delete(localApplication.id);
-
-        result.deleted++;
-      } catch (error) {
-        console.warn("JobTrack: Delete sync failed", error);
-
-        result.errors++;
-      }
-
-      continue;
-    }
-
     const cloudApplication = cloudMap.get(localApplication.id);
 
     // -------------------------

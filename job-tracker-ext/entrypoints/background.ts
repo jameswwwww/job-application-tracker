@@ -9,11 +9,19 @@ async function runSync() {
 
     console.log("JobTrack: background sync completed", result);
 
-    await browser.storage.local.set({
-      jobtrackLastSyncAt: new Date().toISOString(),
+    const now = new Date().toISOString();
 
-      jobtrackLastSyncError: null,
-    });
+    if (result.errors > 0) {
+      await browser.storage.local.set({
+        jobtrackLastSyncError: `${result.errors} item(s) failed to sync.`,
+      });
+    } else {
+      await browser.storage.local.set({
+        jobtrackLastSyncAt: new Date().toISOString(),
+
+        jobtrackLastSyncError: null,
+      });
+    }
 
     return result;
   } catch (error) {
