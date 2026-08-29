@@ -1,13 +1,22 @@
 import { db } from "./db";
 import type { JobApplication, ApplicationFormValues } from "../types";
 import { v4 as uuidv4 } from "uuid";
+import {
+  GUEST_OWNER_KEY,
+  getCurrentOwnerKey,
+  syncApplication,
+} from "./syncService";
 
-type NewApplication = Omit<JobApplication, "id" | "createdAt" | "updatedAt">;
+type NewApplication = Omit<
+  JobApplication,
+  "id" | "ownerKey" | "syncState" | "deletedAt" | "createdAt" | "updatedAt"
+>;
 
 export async function createManualApplication(values: ApplicationFormValues) {
+  const ownerKey = await getCurrentOwnerKey();
   const existing = await db.applications
-    .where("[company+jobTitle]")
-    .equals([values.company, values.jobTitle])
+    .where("[ownerKey+company+jobTitle]")
+    .equals([ownerKey, values.company, values.jobTitle])
     .first();
 
   if (existing) {
@@ -54,9 +63,19 @@ export async function createManualApplication(values: ApplicationFormValues) {
 
     createdAt: now,
     updatedAt: now,
+
+    ownerKey,
+
+    syncState: ownerKey === GUEST_OWNER_KEY ? "local" : "pending",
+
+    deletedAt: null,
   };
 
   await db.applications.add(newApplication);
+
+  if (ownerKey !== GUEST_OWNER_KEY) {
+    await syncApplication(newApplication.id);
+  }
 
   return newApplication.id;
 }
@@ -66,6 +85,8 @@ export async function updateApplication(
   values: ApplicationFormValues,
 ) {
   const existing = await db.applications.get(id);
+  const syncState =
+    existing?.ownerKey === GUEST_OWNER_KEY ? "local" : "pending";
 
   if (!existing) {
     throw new Error("Application could not be found.");
@@ -103,15 +124,21 @@ export async function updateApplication(
     userConfirmed: values.status === "Saved" ? existing.userConfirmed : true,
 
     updatedAt: now,
+    syncState,
   });
+
+  if (existing.ownerKey !== GUEST_OWNER_KEY) {
+    await syncApplication(id);
+  }
 
   return id;
 }
 
 export async function processDetectedApplication(payload: NewApplication) {
+  const ownerKey = await getCurrentOwnerKey();
   const existingApp = await db.applications
-    .where("[company+jobTitle]")
-    .equals([payload.company, payload.jobTitle])
+    .where("[ownerKey+company+jobTitle]")
+    .equals([ownerKey, payload.company, payload.jobTitle])
     .first();
 
   const now = new Date().toISOString();
@@ -145,7 +172,12 @@ export async function processDetectedApplication(payload: NewApplication) {
       jobType: payload.jobType || existingApp.jobType,
 
       updatedAt: now,
+      syncState: ownerKey === GUEST_OWNER_KEY ? "local" : "pending",
     });
+
+    if (ownerKey !== GUEST_OWNER_KEY) {
+      await syncApplication(existingApp.id);
+    }
 
     return existingApp.id;
   }
@@ -157,11 +189,79 @@ export async function processDetectedApplication(payload: NewApplication) {
 
     createdAt: now,
     updatedAt: now,
+
+    ownerKey,
+
+    syncState: ownerKey === GUEST_OWNER_KEY ? "local" : "pending",
+
+    deletedAt: null,
   };
 
   console.log("Job Tracker: Saving new application:", newApp);
 
   await db.applications.add(newApp);
 
+  if (ownerKey !== GUEST_OWNER_KEY) {
+    await syncApplication(newApp.id);
+  }
+
   return newApp.id;
+}
+
+export async function deleteApplication(id: string) {
+  const existing = await db.applications.get(id);
+
+  if (!existing) {
+    return;
+  }
+
+  // Guest applications have no
+  // cloud copy.
+  if (existing.ownerKey === GUEST_OWNER_KEY) {
+    await db.applications.delete(id);
+
+    return;
+  }
+
+  const now = new Date().toISOString();
+
+  // Keep a hidden tombstone locally
+  // until cloud deletion succeeds.
+  await db.applications.update(id, {
+    deletedAt: now,
+    updatedAt: now,
+    syncState: "pending",
+  });
+
+  await syncApplication(id);
+}
+
+export async function updateApplicationStatus(
+  id: string,
+  status: JobApplication["status"],
+) {
+  const existing = await db.applications.get(id);
+
+  if (!existing) {
+    return;
+  }
+
+  const now = new Date().toISOString();
+
+  await db.applications.update(id, {
+    status,
+
+    applicationConfidence:
+      status === "Saved" ? existing.applicationConfidence : 1,
+
+    userConfirmed: status === "Saved" ? existing.userConfirmed : true,
+
+    syncState: existing.ownerKey === GUEST_OWNER_KEY ? "local" : "pending",
+
+    updatedAt: now,
+  });
+
+  if (existing.ownerKey !== GUEST_OWNER_KEY) {
+    await syncApplication(id);
+  }
 }

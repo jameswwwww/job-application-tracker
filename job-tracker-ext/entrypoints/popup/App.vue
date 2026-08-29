@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 
-import { db } from "../../src/services/db";
+import {
+  getApplicationsForCurrentOwner,
+  syncCurrentUserApplications,
+} from "../../src/services/syncService";
 
 import type { JobApplication } from "../../src/types";
 
 const applications = ref<JobApplication[]>([]);
+
+async function loadApplications() {
+  applications.value = await getApplicationsForCurrentOwner();
+}
 
 const openDashboard = () => {
   browser.tabs.create({
@@ -69,7 +76,17 @@ function statusClass(status: JobApplication["status"]) {
 }
 
 onMounted(async () => {
-  applications.value = await db.applications.toArray();
+  // Show cached data immediately.
+  await loadApplications();
+
+  // Then refresh from cloud.
+  try {
+    await syncCurrentUserApplications();
+
+    await loadApplications();
+  } catch (error) {
+    console.warn("JobTrack: Background popup sync failed", error);
+  }
 });
 </script>
 

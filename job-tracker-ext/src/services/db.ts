@@ -43,6 +43,24 @@ export class JobTrackerDB extends Dexie {
             delete application.confidenceScore;
           });
       });
+
+    this.version(3)
+      .stores({
+        applications:
+          "&id, ownerKey, company, status, platform, applicationDate, source, syncState, [company+jobTitle], [ownerKey+company+jobTitle]",
+      })
+      .upgrade((transaction) => {
+        return transaction
+          .table("applications")
+          .toCollection()
+          .modify((application) => {
+            application.ownerKey ??= "guest";
+
+            application.syncState ??= "local";
+
+            application.deletedAt ??= null;
+          });
+      });
   }
 }
 

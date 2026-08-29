@@ -6,6 +6,8 @@ import { db } from "../../src/services/db";
 import {
   createManualApplication,
   updateApplication,
+  deleteApplication,
+  updateApplicationStatus,
 } from "../../src/services/storageService";
 
 import type {
@@ -22,6 +24,11 @@ import {
   signOut,
   onAuthChange,
 } from "../../src/services/authService";
+
+import {
+  getApplicationsForCurrentOwner,
+  syncCurrentUserApplications,
+} from "../../src/services/syncService";
 
 import ApplicationForm from "../../components/ApplicationForm.vue";
 import AuthModal from "../../components/AuthModal.vue";
@@ -74,10 +81,7 @@ const showAuthModal = ref(false);
 // -----------------------------
 
 async function loadApplications() {
-  applications.value = await db.applications
-    .orderBy("applicationDate")
-    .reverse()
-    .toArray();
+  applications.value = await getApplicationsForCurrentOwner();
 }
 
 async function loadUser() {
@@ -88,13 +92,16 @@ async function handleSignOut() {
   await signOut();
 
   currentUser.value = null;
+
+  await loadApplications();
 }
 
 async function handleAuthenticated() {
   await loadUser();
 
-  // Step 5B:
-  // syncApplications()
+  await syncCurrentUserApplications();
+
+  await loadApplications();
 }
 
 // -----------------------------
@@ -233,19 +240,7 @@ async function updateStatus(application: JobApplication, event: Event) {
 
   const newStatus = select.value as JobApplication["status"];
 
-  const updates: Partial<JobApplication> = {
-    status: newStatus,
-
-    updatedAt: new Date().toISOString(),
-  };
-
-  if (newStatus !== "Saved") {
-    updates.applicationConfidence = 1;
-
-    updates.userConfirmed = true;
-  }
-
-  await db.applications.update(application.id, updates);
+  await updateApplicationStatus(application.id, newStatus);
 
   await loadApplications();
 }
@@ -259,7 +254,7 @@ async function deleteApp(id: string) {
     return;
   }
 
-  await db.applications.delete(id);
+  await deleteApplication(id);
 
   await loadApplications();
 }
@@ -305,6 +300,10 @@ function confidenceClass(value: number | undefined) {
 onMounted(async () => {
   await loadUser();
 
+  if (currentUser.value) {
+    await syncCurrentUserApplications();
+  }
+
   await loadApplications();
 
   const params = new URLSearchParams(window.location.search);
@@ -316,10 +315,6 @@ onMounted(async () => {
   if (params.get("action") === "login") {
     showAuthModal.value = true;
   }
-
-  onAuthChange((user) => {
-    currentUser.value = user;
-  });
 });
 </script>
 

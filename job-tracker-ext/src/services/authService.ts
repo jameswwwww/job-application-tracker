@@ -61,3 +61,13 @@ export function onAuthChange(
     data.subscription.unsubscribe();
   };
 }
+
+export async function getSessionUserId(): Promise<string | null> {
+  const { data, error } = await supabase.auth.getSession();
+
+  if (error) {
+    return null;
+  }
+
+  return data.session?.user.id ?? null;
+}
