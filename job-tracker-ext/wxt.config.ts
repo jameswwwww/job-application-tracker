@@ -12,7 +12,7 @@ export default defineConfig({
     name: "Job Application Tracker",
     description: "Automated tracking pipeline for job applications.",
     version: "1.0.0",
-    permissions: ["storage", "activeTab", "scripting"],
+    permissions: ["storage", "activeTab", "scripting", "alarms"],
     host_permissions: [
       "*://*.linkedin.com/*",
       "*://*.jobstreet.com/*",

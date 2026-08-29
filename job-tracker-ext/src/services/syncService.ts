@@ -33,6 +33,8 @@ interface CloudApplicationRow {
 
   notes: string;
 
+  deleted_at: string | null;
+
   created_at: string;
   updated_at: string;
 }
@@ -83,6 +85,8 @@ function toCloudRow(
 
     notes: application.notes ?? "",
 
+    deleted_at: application.deletedAt,
+
     created_at: application.createdAt,
 
     updated_at: application.updatedAt,
@@ -128,7 +132,7 @@ function fromCloudRow(row: CloudApplicationRow): JobApplication {
 
     syncState: "synced",
 
-    deletedAt: null,
+    deletedAt: row.deleted_at,
 
     createdAt: row.created_at,
 
@@ -179,11 +183,11 @@ export async function syncApplication(id: string): Promise<boolean> {
 
   try {
     if (application.deletedAt) {
-      await deleteCloudApplication(application.id, userId);
+      await uploadApplication(application, userId);
 
-      // Delete the tombstone after
-      // cloud deletion succeeds.
-      await db.applications.delete(application.id);
+      await db.applications.update(application.id, {
+        syncState: "synced",
+      });
 
       return true;
     }
@@ -349,6 +353,22 @@ export async function syncCurrentUserApplications(): Promise<SyncResult> {
       }
 
       continue;
+    }
+
+    if (cloudApplication.deleted_at) {
+      const cloudUpdated = new Date(cloudApplication.updated_at).getTime();
+
+      const localUpdated = new Date(localApplication.updatedAt).getTime();
+
+      if (cloudUpdated >= localUpdated) {
+        await db.applications.put(fromCloudRow(cloudApplication));
+
+        result.pulled++;
+
+        cloudMap.delete(localApplication.id);
+
+        continue;
+      }
     }
 
     // -------------------------

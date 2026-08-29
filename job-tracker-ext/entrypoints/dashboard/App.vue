@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 
 import { db } from "../../src/services/db";
+
+import { getSyncStatus } from "../../src/services/syncStatusService";
 
 import {
   createManualApplication,
@@ -32,6 +34,7 @@ import {
 
 import ApplicationForm from "../../components/ApplicationForm.vue";
 import AuthModal from "../../components/AuthModal.vue";
+import ConfirmDialog from "../../components/ConfirmDialog.vue";
 
 const applications = ref<JobApplication[]>([]);
 
@@ -40,6 +43,18 @@ const showForm = ref(false);
 const editingApplication = ref<JobApplication | null>(null);
 
 const formError = ref("");
+
+const isOnline = ref(navigator.onLine);
+
+const isSyncing = ref(false);
+
+const pendingSyncCount = ref(0);
+
+const lastSyncAt = ref<string | null>(null);
+
+const syncError = ref<string | null>(null);
+
+const pendingDelete = ref<JobApplication | null>(null);
 
 // -----------------------------
 // Search & Filters
@@ -225,6 +240,8 @@ async function saveForm(values: ApplicationFormValues) {
     closeForm();
 
     await loadApplications();
+
+    await refreshSyncStatus();
   } catch (error) {
     formError.value =
       error instanceof Error ? error.message : "Unable to save application.";
@@ -243,20 +260,32 @@ async function updateStatus(application: JobApplication, event: Event) {
   await updateApplicationStatus(application.id, newStatus);
 
   await loadApplications();
+
+  await refreshSyncStatus();
 }
 
 // -----------------------------
 // Delete
 // -----------------------------
 
-async function deleteApp(id: string) {
-  if (!confirm("Remove this application?")) {
+function requestDelete(application: JobApplication) {
+  pendingDelete.value = application;
+}
+
+async function confirmDelete() {
+  if (!pendingDelete.value) {
     return;
   }
+
+  const id = pendingDelete.value.id;
+
+  pendingDelete.value = null;
 
   await deleteApplication(id);
 
   await loadApplications();
+
+  await refreshSyncStatus();
 }
 
 // -----------------------------
@@ -293,6 +322,52 @@ function confidenceClass(value: number | undefined) {
   return "bg-red-50 text-red-700 border-red-200";
 }
 
+async function refreshSyncStatus() {
+  const status = await getSyncStatus();
+
+  pendingSyncCount.value = status.pendingCount;
+
+  lastSyncAt.value = status.lastSyncAt;
+
+  syncError.value = status.lastError;
+}
+
+async function syncNow() {
+  if (!currentUser.value || !navigator.onLine) {
+    return;
+  }
+
+  isSyncing.value = true;
+
+  syncError.value = null;
+
+  try {
+    await browser.runtime.sendMessage({
+      type: "SYNC_NOW",
+    });
+
+    await loadApplications();
+
+    await refreshSyncStatus();
+  } catch (error) {
+    syncError.value = error instanceof Error ? error.message : "Sync failed.";
+  } finally {
+    isSyncing.value = false;
+  }
+}
+
+async function handleOnline() {
+  isOnline.value = true;
+
+  if (currentUser.value) {
+    await syncNow();
+  }
+}
+
+function handleOffline() {
+  isOnline.value = false;
+}
+
 // -----------------------------
 // Initialisation
 // -----------------------------
@@ -315,6 +390,18 @@ onMounted(async () => {
   if (params.get("action") === "login") {
     showAuthModal.value = true;
   }
+
+  window.addEventListener("online", handleOnline);
+
+  window.addEventListener("offline", handleOffline);
+
+  await refreshSyncStatus();
+});
+
+onUnmounted(() => {
+  window.removeEventListener("online", handleOnline);
+
+  window.removeEventListener("offline", handleOffline);
 });
 </script>
 
@@ -396,6 +483,51 @@ onMounted(async () => {
           </button>
         </div>
       </header>
+
+      <button
+        v-if="currentUser"
+        type="button"
+        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50"
+        :disabled="isSyncing"
+        @click="syncNow"
+      >
+        <!-- Offline -->
+        <span v-if="!isOnline" class="h-2 w-2 rounded-full bg-amber-500" />
+
+        <!-- Syncing -->
+        <svg
+          v-else-if="isSyncing"
+          class="animate-spin"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+        </svg>
+
+        <!-- Pending -->
+        <span
+          v-else-if="pendingSyncCount > 0"
+          class="h-2 w-2 rounded-full bg-amber-500"
+        />
+
+        <!-- Synced -->
+        <span v-else class="h-2 w-2 rounded-full bg-emerald-500" />
+
+        <span v-if="!isOnline"> Offline </span>
+
+        <span v-else-if="isSyncing"> Syncing… </span>
+
+        <span v-else-if="pendingSyncCount > 0">
+          {{ pendingSyncCount }}
+          pending
+        </span>
+
+        <span v-else> Synced </span>
+      </button>
 
       <!-- Stats -->
       <section class="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -729,7 +861,7 @@ onMounted(async () => {
                       type="button"
                       class="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
                       title="Delete"
-                      @click="deleteApp(job.id)"
+                      @click="requestDelete(job)"
                     >
                       <svg
                         width="15"
@@ -820,6 +952,15 @@ onMounted(async () => {
       v-if="showAuthModal"
       @close="showAuthModal = false"
       @authenticated="handleAuthenticated"
+    />
+
+    <ConfirmDialog
+      v-if="pendingDelete"
+      title="Delete application?"
+      :description="`Remove ${pendingDelete.jobTitle} at ${pendingDelete.company} from your tracker?`"
+      confirm-label="Delete"
+      @confirm="confirmDelete"
+      @cancel="pendingDelete = null"
     />
   </div>
 </template>
