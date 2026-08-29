@@ -33,6 +33,12 @@ const interviewCount = computed(
   () => applications.value.filter((app) => app.status === "Interview").length,
 );
 
+const openLogin = () => {
+  browser.tabs.create({
+    url: browser.runtime.getURL("/dashboard.html") + "?action=login",
+  });
+};
+
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString(undefined, {
     day: "numeric",
@@ -68,7 +74,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="w-[380px] bg-white text-slate-900">
+  <div class="w-380px bg-white text-slate-900">
     <!-- Header -->
     <div class="flex items-center justify-between px-5 pt-5 pb-4">
       <div class="flex items-center gap-3">
@@ -201,7 +207,7 @@ onMounted(async () => {
             </div>
 
             <div class="mt-1 flex items-center gap-2 text-xs text-gray-400">
-              <span class="max-w-[135px] truncate">
+              <span class="max-w-135px truncate">
                 {{ job.company }}
               </span>
 
@@ -223,6 +229,13 @@ onMounted(async () => {
           </span>
         </div>
       </div>
+      <button
+        type="button"
+        class="w-full rounded-xl px-4 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50"
+        @click="openLogin"
+      >
+        Sign in to sync
+      </button>
     </div>
 
     <!-- Footer Actions -->

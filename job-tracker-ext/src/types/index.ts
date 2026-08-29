@@ -26,6 +26,10 @@ export type ExtractionMethod =
 export interface JobApplication {
   id: string;
 
+  // Which local user owns this record.
+  // Supabase user ID, or "guest".
+  ownerKey: string;
+
   company: string;
   jobTitle: string;
 
@@ -57,6 +61,12 @@ export interface JobApplication {
 
   notes?: string;
 
+  // Cloud sync state
+  syncState: SyncState;
+
+  // Used as a delete tombstone while offline.
+  deletedAt: string | null;
+
   createdAt: string;
   updatedAt: string;
 }
@@ -74,3 +84,5 @@ export type ApplicationFormValues = Pick<
   | "status"
   | "notes"
 >;
+
+export type SyncState = "local" | "pending" | "synced";

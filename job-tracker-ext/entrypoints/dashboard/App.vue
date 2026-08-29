@@ -15,7 +15,16 @@ import type {
   JobPlatform,
 } from "../../src/types";
 
+import type { User } from "@supabase/supabase-js";
+
+import {
+  getCurrentUser,
+  signOut,
+  onAuthChange,
+} from "../../src/services/authService";
+
 import ApplicationForm from "../../components/ApplicationForm.vue";
+import AuthModal from "../../components/AuthModal.vue";
 
 const applications = ref<JobApplication[]>([]);
 
@@ -56,6 +65,10 @@ const platformOptions: Array<"All" | JobPlatform> = [
   "Other",
 ];
 
+const currentUser = ref<User | null>(null);
+
+const showAuthModal = ref(false);
+
 // -----------------------------
 // Load Applications
 // -----------------------------
@@ -65,6 +78,23 @@ async function loadApplications() {
     .orderBy("applicationDate")
     .reverse()
     .toArray();
+}
+
+async function loadUser() {
+  currentUser.value = await getCurrentUser();
+}
+
+async function handleSignOut() {
+  await signOut();
+
+  currentUser.value = null;
+}
+
+async function handleAuthenticated() {
+  await loadUser();
+
+  // Step 5B:
+  // syncApplications()
 }
 
 // -----------------------------
@@ -273,6 +303,8 @@ function confidenceClass(value: number | undefined) {
 // -----------------------------
 
 onMounted(async () => {
+  await loadUser();
+
   await loadApplications();
 
   const params = new URLSearchParams(window.location.search);
@@ -280,12 +312,20 @@ onMounted(async () => {
   if (params.get("action") === "add") {
     openAddForm();
   }
+
+  if (params.get("action") === "login") {
+    showAuthModal.value = true;
+  }
+
+  onAuthChange((user) => {
+    currentUser.value = user;
+  });
 });
 </script>
 
 <template>
   <div class="min-h-screen bg-[#f8fafc]">
-    <div class="mx-auto max-w-[1320px] px-6 py-8 lg:px-10">
+    <div class="mx-auto max-w-1320px px-6 py-8 lg:px-10">
       <!-- Header -->
       <header
         class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center"
@@ -321,24 +361,45 @@ onMounted(async () => {
           </div>
         </div>
 
-        <button
-          class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
-          @click="openAddForm"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
+        <div class="flex items-center gap-2">
+          <!-- Signed out -->
+          <button
+            v-if="!currentUser"
+            type="button"
+            class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+            @click="showAuthModal = true"
           >
-            <path d="M12 5v14" />
-            <path d="M5 12h14" />
-          </svg>
+            Sign in
+          </button>
 
-          Add application
-        </button>
+          <!-- Signed in -->
+          <div v-else class="flex items-center gap-2">
+            <div class="hidden text-right sm:block">
+              <div class="text-xs text-slate-400">Signed in as</div>
+
+              <div
+                class="max-w-180px truncate text-sm font-medium text-slate-700"
+              >
+                {{ currentUser.email }}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+              @click="handleSignOut"
+            >
+              Sign out
+            </button>
+          </div>
+
+          <button
+            class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
+            @click="openAddForm"
+          >
+            + Add application
+          </button>
+        </div>
       </header>
 
       <!-- Stats -->
@@ -463,7 +524,7 @@ onMounted(async () => {
 
         <!-- Table -->
         <div class="overflow-x-auto">
-          <table class="w-full min-w-[1050px] text-left">
+          <table class="w-full min-w-1050px text-left">
             <thead>
               <tr class="border-b border-gray-100 text-xs text-gray-400">
                 <th class="px-5 py-3 font-medium">Role</th>
@@ -758,6 +819,12 @@ onMounted(async () => {
       :error="formError"
       @save="saveForm"
       @cancel="closeForm"
+    />
+
+    <AuthModal
+      v-if="showAuthModal"
+      @close="showAuthModal = false"
+      @authenticated="handleAuthenticated"
     />
   </div>
 </template>
