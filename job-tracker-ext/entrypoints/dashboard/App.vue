@@ -79,6 +79,9 @@ const platformOptions: Array<"All" | JobPlatform> = [
   "Greenhouse",
   "Lever",
   "Workday",
+  "Ashby",
+  "SmartRecruiters",
+  "BambooHR",
   "CompanySite",
   "Other",
 ];

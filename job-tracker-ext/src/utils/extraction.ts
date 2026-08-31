@@ -245,14 +245,18 @@ export function extractSalaryFromText(
 
   const currencies = "(?:RM|MYR|SGD|USD|AUD|CAD|GBP|EUR|£|€|\\$)";
 
+  const amount = "[\\d,.]+(?:\\s*[kKmM])?";
+
+  const period = "(?:hour|day|week|month|year|annum|annual|annually)";
+
   const patterns = [
     new RegExp(
-      `${currencies}\\s*[\\d,.]+(?:\\s*[–—-]\\s*(?:${currencies}\\s*)?[\\d,.]+)?(?:\\s*(?:per|/)\\s*(?:hour|day|week|month|year|annum))?`,
+      `${currencies}\\s*${amount}(?:\\s*[–—-]\\s*(?:${currencies}\\s*)?${amount})?(?:\\s*(?:per|/)\\s*${period})?`,
       "i",
     ),
 
     new RegExp(
-      `[\\d,.]+\\s*[–—-]\\s*[\\d,.]+\\s*(?:per|/)\\s*(?:hour|day|week|month|year|annum)`,
+      `${amount}\\s*[–—-]\\s*${amount}\\s*(?:per|/)\\s*${period}`,
       "i",
     ),
   ];

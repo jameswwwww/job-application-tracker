@@ -5,6 +5,7 @@ import {
   getJobPostingJsonLd,
   getLocationFromJsonLd,
   getSalaryFromJsonLd,
+  extractSalaryFromText,
 } from "../../src/utils/extraction";
 
 describe("extraction utilities", () => {
@@ -84,5 +85,11 @@ describe("extraction utilities", () => {
     });
 
     expect(result).toBe(0.8);
+  });
+
+  it("extracts abbreviated salary ranges", () => {
+    expect(extractSalaryFromText("Compensation £90K – £135K")).toBe(
+      "£90K – £135K",
+    );
   });
 });

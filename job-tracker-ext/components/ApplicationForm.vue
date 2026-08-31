@@ -25,6 +25,9 @@ const platforms: JobPlatform[] = [
   "Greenhouse",
   "Lever",
   "Workday",
+  "Ashby",
+  "SmartRecruiters",
+  "BambooHR",
   "CompanySite",
   "Other",
 ];

@@ -14,6 +14,9 @@ export default defineContentScript({
     "*://*.lever.co/*",
     "*://*.myworkdayjobs.com/*",
     "*://*.myworkdaysite.com/*",
+    "*://jobs.ashbyhq.com/*",
+    "*://jobs.smartrecruiters.com/*",
+    "*://*.bamboohr.com/*",
   ],
 
   cssInjectionMode: "ui",
