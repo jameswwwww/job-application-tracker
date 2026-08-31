@@ -72,7 +72,9 @@ export default defineBackground(() => {
         const previous = stored[key];
 
         const previousObject =
-          previous && typeof previous === "object" ? previous : {};
+          previous && typeof previous === "object"
+            ? (previous as Record<string, unknown>)
+            : {};
 
         const incoming = Object.fromEntries(
           Object.entries(message.payload ?? {}).filter(
@@ -81,11 +83,39 @@ export default defineBackground(() => {
           ),
         );
 
+        const previousTitle =
+          typeof previousObject.jobTitle === "string"
+            ? previousObject.jobTitle
+            : null;
+
+        const incomingTitle =
+          typeof incoming.jobTitle === "string" ? incoming.jobTitle : null;
+
+        const previousCompany =
+          typeof previousObject.company === "string"
+            ? previousObject.company
+            : null;
+
+        const incomingCompany =
+          typeof incoming.company === "string" ? incoming.company : null;
+
+        const isDifferentJob =
+          Boolean(
+            previousTitle && incomingTitle && previousTitle !== incomingTitle,
+          ) ||
+          Boolean(
+            previousCompany &&
+            incomingCompany &&
+            previousCompany !== incomingCompany,
+          );
+
         await browser.storage.session.set({
-          [key]: {
-            ...previousObject,
-            ...incoming,
-          },
+          [key]: isDifferentJob
+            ? incoming
+            : {
+                ...previousObject,
+                ...incoming,
+              },
         });
 
         sendResponse({

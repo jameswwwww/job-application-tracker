@@ -6,6 +6,22 @@ import type { JobApplication, NewApplicationPayload } from "../types";
 
 import { promptUserForConfirmation } from "./uiInjector";
 
+function looksLikeConfirmationTitle(value: string | null | undefined) {
+  if (!value) {
+    return false;
+  }
+
+  const text = value.toLowerCase();
+
+  return [
+    "thank you for applying",
+    "thanks for applying",
+    "application submitted",
+    "application received",
+    "application successfully submitted",
+  ].some((phrase) => text.includes(phrase));
+}
+
 async function cacheJobContext(details: Partial<JobApplication>) {
   try {
     await browser.runtime.sendMessage({
@@ -51,6 +67,10 @@ export function setupApplicationTracking(
     const details = adapter.extractJobDetails();
 
     if (!details || (!details.jobTitle && !details.company)) {
+      return;
+    }
+
+    if (looksLikeConfirmationTitle(details.jobTitle)) {
       return;
     }
 

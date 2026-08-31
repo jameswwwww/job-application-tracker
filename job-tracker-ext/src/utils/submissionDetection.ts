@@ -97,6 +97,9 @@ export function observeSubmissionSignals(
     fallbackScheduled = true;
 
     fallbackTimer = setTimeout(() => {
+      fallbackTimer = null;
+      fallbackScheduled = false;
+
       if (!finished) {
         onDetected(fallbackConfidence);
       }
