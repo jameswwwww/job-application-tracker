@@ -3,6 +3,8 @@ export type JobPlatform =
   | "JobStreet"
   | "Indeed"
   | "Greenhouse"
+  | "Lever"
+  | "Workday"
   | "CompanySite"
   | "Other";
 

@@ -80,13 +80,12 @@ function statusClass(status: JobApplication["status"]) {
 }
 
 onMounted(async () => {
-  // Show cached data immediately.
+  isSignedIn.value = !!(await getSessionUserId());
+
   await loadApplications();
 
-  // Then refresh from cloud.
   try {
     await syncCurrentUserApplications();
-
     await loadApplications();
   } catch (error) {
     console.warn("JobTrack: Background popup sync failed", error);

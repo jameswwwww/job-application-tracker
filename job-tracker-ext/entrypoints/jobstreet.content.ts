@@ -12,13 +12,6 @@ export default defineContentScript({
 
     const adapter = new JobStreetAdapter();
 
-    // TEMP DEBUG
-    const jobDetails = adapter.extractJobDetails();
-
-    console.log("Job Tracker: Extracted JobStreet details:", jobDetails);
-
-    console.table(jobDetails);
-
     setupApplicationTracking(ctx, adapter);
   },
 });

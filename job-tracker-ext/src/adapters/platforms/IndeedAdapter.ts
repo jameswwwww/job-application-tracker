@@ -1,6 +1,8 @@
 import type { SiteAdapter } from "../BaseAdapter";
 import type { JobApplication } from "../../types";
 
+import { observeSubmissionSignals } from "../../utils/submissionDetection";
+
 import {
   calculateExtractionConfidence,
   extractJobTypeFromText,
@@ -103,27 +105,20 @@ export class IndeedAdapter implements SiteAdapter {
   observeApplicationProcess(onDetected: (confidence: number) => void): void {
     console.log("Indeed Adapter: Observing application process...");
 
-    document.body.addEventListener("click", (event) => {
-      const target = event.target as HTMLElement;
+    observeSubmissionSignals(onDetected, {
+      successPhrases: [
+        "application submitted",
+        "your application has been submitted",
+        "application sent",
+        "you've applied",
+        "you have applied",
+      ],
 
-      // Look for the primary "Apply now" or "Apply on company site" buttons
-      const applyButton = target.closest(
-        "#applyButtonLinkContainer button, #applyButtonLinkContainer a",
-      );
+      buttonPhrases: ["submit your application", "submit application"],
 
-      if (applyButton) {
-        const buttonText = applyButton.textContent?.toLowerCase() || "";
+      fallbackConfidence: 0.75,
 
-        if (buttonText.includes("company site")) {
-          console.log("Indeed Adapter: Redirecting to company site.");
-          // Redirecting away means we aren't 100% sure they will finish the application
-          onDetected(0.6);
-        } else {
-          console.log("Indeed Adapter: Indeed Apply initiated!");
-          // Using Indeed's native apply modal gives us higher confidence
-          onDetected(0.8);
-        }
-      }
+      fallbackDelayMs: 2000,
     });
   }
 }

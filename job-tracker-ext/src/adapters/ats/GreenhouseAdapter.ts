@@ -1,6 +1,8 @@
 import type { SiteAdapter } from "../BaseAdapter";
 import type { JobApplication } from "../../types";
 
+import { observeSubmissionSignals } from "../../utils/submissionDetection";
+
 import {
   calculateExtractionConfidence,
   extractJobTypeFromText,
@@ -101,19 +103,24 @@ export class GreenhouseAdapter implements SiteAdapter {
   observeApplicationProcess(onDetected: (confidence: number) => void): void {
     console.log("Greenhouse Adapter: Observing application process...");
 
-    // Greenhouse uses a standard form submission
-    const form = document.getElementById("application_form");
-    if (form) {
-      form.addEventListener("submit", () => {
-        console.log("Greenhouse Adapter: Form submitted!");
-        // High confidence because we are intercepting the actual form submit event
-        onDetected(0.9);
-      });
-    } else {
-      // Fallback for confirmation page
-      if (document.body.textContent?.includes("Thank you for applying")) {
-        onDetected(1.0);
-      }
-    }
+    observeSubmissionSignals(onDetected, {
+      successPhrases: [
+        "thank you for applying",
+        "thanks for applying",
+        "application submitted",
+        "we've received your application",
+        "we have received your application",
+      ],
+
+      formSelectors: ["#application_form", 'form[action*="application"]'],
+
+      buttonSelectors: ["#submit_app"],
+
+      buttonPhrases: ["submit application"],
+
+      fallbackConfidence: 0.75,
+
+      fallbackDelayMs: 2000,
+    });
   }
 }

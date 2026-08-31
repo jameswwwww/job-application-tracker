@@ -11,16 +11,19 @@ export default defineContentScript({
     "*://*.jobstreet.com/*",
     "*://*.jobstreet.com.my/*",
     "*://*.indeed.com/*",
+    "*://*.lever.co/*",
+    "*://*.myworkdayjobs.com/*",
+    "*://*.myworkdaysite.com/*",
   ],
 
   cssInjectionMode: "ui",
 
   main(ctx) {
-    if (ctx.isInvalid) return;
+    if (ctx.isInvalid) {
+      return;
+    }
 
     const htmlContent = document.documentElement.innerHTML;
-
-    let adapter;
 
     if (
       window.location.hostname.includes("greenhouse.io") ||
@@ -28,19 +31,22 @@ export default defineContentScript({
     ) {
       console.log("Job Tracker: Greenhouse ATS detected");
 
-      adapter = new GreenhouseAdapter();
-    } else {
-      adapter = new GenericAdapter();
+      const adapter = new GreenhouseAdapter();
+
+      setupApplicationTracking(ctx, adapter);
+
+      return;
     }
+
+    const adapter = new GenericAdapter();
 
     const jobDetails = adapter.extractJobDetails();
 
-    // Do not start tracking random webpages
     if (!jobDetails) {
       return;
     }
 
-    console.log("Job Tracker: Job page detected", jobDetails);
+    console.log("Job Tracker: Generic job page detected", jobDetails);
 
     setupApplicationTracking(ctx, adapter);
   },

@@ -3,13 +3,17 @@ import { syncCurrentUserApplications } from "../src/services/syncService";
 
 const SYNC_ALARM = "jobtrack-sync";
 
+const JOB_CONTEXT_PREFIX = "jobtrack-job-context-";
+
+function contextKey(tabId: number) {
+  return `${JOB_CONTEXT_PREFIX}${tabId}`;
+}
+
 async function runSync() {
   try {
     const result = await syncCurrentUserApplications();
 
     console.log("JobTrack: background sync completed", result);
-
-    const now = new Date().toISOString();
 
     if (result.errors > 0) {
       await browser.storage.local.set({
@@ -51,6 +55,91 @@ export default defineBackground(() => {
   });
 
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message.type === "CACHE_JOB_CONTEXT") {
+      const tabId = _sender.tab?.id;
+
+      if (tabId === undefined) {
+        sendResponse({
+          status: "Error",
+        });
+
+        return;
+      }
+
+      const key = contextKey(tabId);
+
+      browser.storage.session.get(key).then(async (stored) => {
+        const previous = stored[key];
+
+        const previousObject =
+          previous && typeof previous === "object" ? previous : {};
+
+        const incoming = Object.fromEntries(
+          Object.entries(message.payload ?? {}).filter(
+            ([, value]) =>
+              value !== null && value !== undefined && value !== "",
+          ),
+        );
+
+        await browser.storage.session.set({
+          [key]: {
+            ...previousObject,
+            ...incoming,
+          },
+        });
+
+        sendResponse({
+          status: "Success",
+        });
+      });
+
+      return true;
+    }
+
+    if (message.type === "GET_JOB_CONTEXT") {
+      const tabId = _sender.tab?.id;
+
+      if (tabId === undefined) {
+        sendResponse({
+          status: "Success",
+          payload: null,
+        });
+
+        return;
+      }
+
+      const key = contextKey(tabId);
+
+      browser.storage.session.get(key).then((stored) => {
+        sendResponse({
+          status: "Success",
+          payload: stored[key] ?? null,
+        });
+      });
+
+      return true;
+    }
+
+    if (message.type === "CLEAR_JOB_CONTEXT") {
+      const tabId = _sender.tab?.id;
+
+      if (tabId === undefined) {
+        sendResponse({
+          status: "Success",
+        });
+
+        return;
+      }
+
+      browser.storage.session.remove(contextKey(tabId)).then(() => {
+        sendResponse({
+          status: "Success",
+        });
+      });
+
+      return true;
+    }
+
     if (message.type === "APPLICATION_DETECTED") {
       processDetectedApplication(message.payload)
         .then(() => {

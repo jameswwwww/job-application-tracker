@@ -1,6 +1,8 @@
 import type { SiteAdapter } from "./BaseAdapter";
 import type { JobApplication } from "../types";
 
+import { observeSubmissionSignals } from "../utils/submissionDetection";
+
 import {
   calculateExtractionConfidence,
   extractJobTypeFromText,
@@ -148,22 +150,24 @@ export class GenericAdapter implements SiteAdapter {
   }
 
   observeApplicationProcess(onDetected: (confidence: number) => void): void {
-    // Heuristic: Listen for clicks on buttons containing the word "apply" or "submit"
-    document.body.addEventListener("click", (event) => {
-      const target = event.target as HTMLElement;
-      const button = target.closest('button, a, input[type="submit"]');
+    observeSubmissionSignals(onDetected, {
+      successPhrases: [
+        "thank you for applying",
+        "application submitted",
+        "application received",
+        "we've received your application",
+        "we have received your application",
+      ],
 
-      if (button) {
-        const text =
-          button.textContent?.toLowerCase() ||
-          (button as HTMLInputElement).value?.toLowerCase() ||
-          "";
-        if (text.includes("apply") || text.includes("submit application")) {
-          console.log("Generic Adapter: Potential apply button clicked.");
-          // Low confidence -> will trigger our Vue Shadow DOM prompt
-          onDetected(0.4);
-        }
-      }
+      buttonPhrases: [
+        "submit application",
+        "send application",
+        "complete application",
+      ],
+
+      fallbackConfidence: 0.65,
+
+      fallbackDelayMs: 2000,
     });
   }
 }

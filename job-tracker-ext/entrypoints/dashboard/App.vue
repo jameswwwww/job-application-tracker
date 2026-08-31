@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
 
-import { db } from "../../src/services/db";
-
 import { getSyncStatus } from "../../src/services/syncStatusService";
 
 import {
@@ -21,11 +19,7 @@ import type {
 
 import type { User } from "@supabase/supabase-js";
 
-import {
-  getCurrentUser,
-  signOut,
-  onAuthChange,
-} from "../../src/services/authService";
+import { getCurrentUser, signOut } from "../../src/services/authService";
 
 import {
   getApplicationsForCurrentOwner,
@@ -83,6 +77,8 @@ const platformOptions: Array<"All" | JobPlatform> = [
   "JobStreet",
   "Indeed",
   "Greenhouse",
+  "Lever",
+  "Workday",
   "CompanySite",
   "Other",
 ];

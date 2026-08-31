@@ -1,12 +1,77 @@
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
+
 import type { SiteAdapter } from "../adapters/BaseAdapter";
+
 import type { JobApplication, NewApplicationPayload } from "../types";
+
 import { promptUserForConfirmation } from "./uiInjector";
+
+async function cacheJobContext(details: Partial<JobApplication>) {
+  try {
+    await browser.runtime.sendMessage({
+      type: "CACHE_JOB_CONTEXT",
+      payload: details,
+    });
+  } catch (error) {
+    console.warn("JobTrack: Unable to cache job context", error);
+  }
+}
+
+async function getCachedJobContext(): Promise<Partial<JobApplication> | null> {
+  try {
+    const response = await browser.runtime.sendMessage({
+      type: "GET_JOB_CONTEXT",
+    });
+
+    return response?.payload ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function clearJobContext() {
+  try {
+    await browser.runtime.sendMessage({
+      type: "CLEAR_JOB_CONTEXT",
+    });
+  } catch {
+    // Non-critical cleanup.
+  }
+}
 
 export function setupApplicationTracking(
   ctx: ContentScriptContext,
   adapter: SiteAdapter,
 ) {
+  async function cacheCurrentJob() {
+    if (ctx.isInvalid) {
+      return;
+    }
+
+    const details = adapter.extractJobDetails();
+
+    if (!details || (!details.jobTitle && !details.company)) {
+      return;
+    }
+
+    await cacheJobContext(details);
+  }
+
+  /*
+   * Cache immediately, then again
+   * after SPA pages have had time
+   * to finish rendering.
+   */
+  void cacheCurrentJob();
+
+  setTimeout(() => {
+    void cacheCurrentJob();
+  }, 1000);
+
+  setTimeout(() => {
+    void cacheCurrentJob();
+  }, 3000);
+
   adapter.observeApplicationProcess(async (applicationConfidence) => {
     if (ctx.isInvalid) {
       console.warn(
@@ -16,11 +81,49 @@ export function setupApplicationTracking(
       return;
     }
 
-    const jobDetails = adapter.extractJobDetails();
+    const currentDetails = adapter.extractJobDetails();
 
-    if (!jobDetails) {
+    const cachedDetails = await getCachedJobContext();
+
+    /*
+     * Prefer the cached job-page
+     * information because the current
+     * page could now be a "Thank you"
+     * confirmation screen.
+     */
+    const jobDetails: Partial<JobApplication> = {
+      jobTitle: cachedDetails?.jobTitle || currentDetails?.jobTitle,
+
+      company: cachedDetails?.company || currentDetails?.company,
+
+      location: cachedDetails?.location || currentDetails?.location || null,
+
+      salary: cachedDetails?.salary || currentDetails?.salary || null,
+
+      jobType: cachedDetails?.jobType || currentDetails?.jobType || null,
+
+      platform:
+        currentDetails?.platform ||
+        cachedDetails?.platform ||
+        adapter.platformName,
+
+      jobUrl:
+        cachedDetails?.jobUrl || currentDetails?.jobUrl || window.location.href,
+
+      extractionConfidence:
+        currentDetails?.extractionConfidence ??
+        cachedDetails?.extractionConfidence ??
+        0.5,
+
+      extractionMethod:
+        currentDetails?.extractionMethod ??
+        cachedDetails?.extractionMethod ??
+        "generic-dom",
+    };
+
+    if (!jobDetails.jobTitle && !jobDetails.company) {
       console.warn(
-        "Job Tracker: Application detected but job details could not be extracted.",
+        "Job Tracker: Application detected but no job context was available.",
       );
 
       return;
@@ -28,8 +131,6 @@ export function setupApplicationTracking(
 
     let userConfirmed = false;
 
-    // Requirement:
-    // Below 80% confidence -> ask the user
     if (applicationConfidence < 0.8) {
       userConfirmed = await promptUserForConfirmation(ctx, jobDetails);
 
@@ -44,10 +145,13 @@ export function setupApplicationTracking(
 
     const payload: NewApplicationPayload = {
       company: jobDetails.company || "Unknown Company",
+
       jobTitle: jobDetails.jobTitle || "Unknown Role",
 
       location: jobDetails.location || null,
+
       salary: jobDetails.salary || null,
+
       jobType: jobDetails.jobType || null,
 
       platform: jobDetails.platform || adapter.platformName,
@@ -71,15 +175,20 @@ export function setupApplicationTracking(
       notes: "",
     };
 
-    console.log("Job Tracker: Saving application:", payload);
-
-    browser.runtime
-      .sendMessage({
+    try {
+      const response = await browser.runtime.sendMessage({
         type: "APPLICATION_DETECTED",
+
         payload,
-      })
-      .catch((error) => {
-        console.error("Job Tracker: Failed sending application:", error);
       });
+
+      if (response?.status === "Success") {
+        await clearJobContext();
+      } else {
+        console.error("JobTrack: Application save failed", response?.message);
+      }
+    } catch (error) {
+      console.error("Job Tracker: Failed sending application:", error);
+    }
   });
 }
