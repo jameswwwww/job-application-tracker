@@ -1,6 +1,10 @@
 import { processDetectedApplication } from "../src/services/storageService";
 import { syncCurrentUserApplications } from "../src/services/syncService";
 
+import type { JobApplication } from "../src/types";
+
+import { mergeJobContext } from "../src/utils/jobIdentity";
+
 const SYNC_ALARM = "jobtrack-sync";
 
 const JOB_CONTEXT_PREFIX = "jobtrack-job-context-";
@@ -71,51 +75,20 @@ export default defineBackground(() => {
       browser.storage.session.get(key).then(async (stored) => {
         const previous = stored[key];
 
-        const previousObject =
+        const previousContext =
           previous && typeof previous === "object"
-            ? (previous as Record<string, unknown>)
+            ? (previous as Partial<JobApplication>)
+            : null;
+
+        const incomingContext =
+          message.payload && typeof message.payload === "object"
+            ? (message.payload as Partial<JobApplication>)
             : {};
 
-        const incoming = Object.fromEntries(
-          Object.entries(message.payload ?? {}).filter(
-            ([, value]) =>
-              value !== null && value !== undefined && value !== "",
-          ),
-        );
-
-        const previousTitle =
-          typeof previousObject.jobTitle === "string"
-            ? previousObject.jobTitle
-            : null;
-
-        const incomingTitle =
-          typeof incoming.jobTitle === "string" ? incoming.jobTitle : null;
-
-        const previousCompany =
-          typeof previousObject.company === "string"
-            ? previousObject.company
-            : null;
-
-        const incomingCompany =
-          typeof incoming.company === "string" ? incoming.company : null;
-
-        const isDifferentJob =
-          Boolean(
-            previousTitle && incomingTitle && previousTitle !== incomingTitle,
-          ) ||
-          Boolean(
-            previousCompany &&
-            incomingCompany &&
-            previousCompany !== incomingCompany,
-          );
+        const nextContext = mergeJobContext(previousContext, incomingContext);
 
         await browser.storage.session.set({
-          [key]: isDifferentJob
-            ? incoming
-            : {
-                ...previousObject,
-                ...incoming,
-              },
+          [key]: nextContext,
         });
 
         sendResponse({

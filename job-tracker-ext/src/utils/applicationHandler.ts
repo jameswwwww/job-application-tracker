@@ -6,6 +6,8 @@ import type { JobApplication, NewApplicationPayload } from "../types";
 
 import { promptUserForConfirmation } from "./uiInjector";
 
+import { getJobIdentityKey } from "./jobIdentity";
+
 function looksLikeConfirmationTitle(value: string | null | undefined) {
   if (!value) {
     return false;
@@ -59,6 +61,29 @@ export function setupApplicationTracking(
   ctx: ContentScriptContext,
   adapter: SiteAdapter,
 ) {
+  let activeJobKey: string | null = null;
+
+  let savedCurrentJob = false;
+
+  let detectionInProgress = false;
+
+  let queuedConfidence: number | null = null;
+
+  let lastUrl = window.location.href;
+
+  function registerActiveJob(details: Partial<JobApplication>) {
+    const key = getJobIdentityKey(details);
+
+    if (key && key !== activeJobKey) {
+      activeJobKey = key;
+
+      /*
+       * New job in the same SPA tab.
+       */
+      savedCurrentJob = false;
+    }
+  }
+
   async function cacheCurrentJob() {
     if (ctx.isInvalid) {
       return;
@@ -73,6 +98,8 @@ export function setupApplicationTracking(
     if (looksLikeConfirmationTitle(details.jobTitle)) {
       return;
     }
+
+    registerActiveJob(details);
 
     await cacheJobContext(details);
   }
@@ -92,7 +119,47 @@ export function setupApplicationTracking(
     void cacheCurrentJob();
   }, 3000);
 
-  adapter.observeApplicationProcess(async (applicationConfidence) => {
+  function scheduleNavigationCache() {
+    setTimeout(() => {
+      void cacheCurrentJob();
+    }, 250);
+
+    setTimeout(() => {
+      void cacheCurrentJob();
+    }, 1000);
+  }
+
+  const navigationTimer = window.setInterval(() => {
+    if (ctx.isInvalid) {
+      clearInterval(navigationTimer);
+
+      return;
+    }
+
+    const currentUrl = window.location.href;
+
+    if (currentUrl === lastUrl) {
+      return;
+    }
+
+    lastUrl = currentUrl;
+
+    console.log("JobTrack: SPA navigation detected", currentUrl);
+
+    scheduleNavigationCache();
+  }, 750);
+
+  window.addEventListener(
+    "pagehide",
+    () => {
+      clearInterval(navigationTimer);
+    },
+    {
+      once: true,
+    },
+  );
+
+  async function processDetection(applicationConfidence: number) {
     if (ctx.isInvalid) {
       console.warn(
         "Job Tracker: Extension context invalidated. Refresh the page.",
@@ -108,8 +175,8 @@ export function setupApplicationTracking(
     /*
      * Prefer the cached job-page
      * information because the current
-     * page could now be a "Thank you"
-     * confirmation screen.
+     * page could now be a confirmation
+     * screen.
      */
     const jobDetails: Partial<JobApplication> = {
       jobTitle: cachedDetails?.jobTitle || currentDetails?.jobTitle,
@@ -146,6 +213,17 @@ export function setupApplicationTracking(
         "Job Tracker: Application detected but no job context was available.",
       );
 
+      return;
+    }
+
+    // Step 10G/H
+    registerActiveJob(jobDetails);
+
+    /*
+     * If this job has already been saved,
+     * ignore another low-confidence signal.
+     */
+    if (savedCurrentJob && applicationConfidence < 0.8) {
       return;
     }
 
@@ -198,11 +276,13 @@ export function setupApplicationTracking(
     try {
       const response = await browser.runtime.sendMessage({
         type: "APPLICATION_DETECTED",
-
         payload,
       });
 
       if (response?.status === "Success") {
+        // Important Step 10H line
+        savedCurrentJob = true;
+
         await clearJobContext();
       } else {
         console.error("JobTrack: Application save failed", response?.message);
@@ -210,5 +290,51 @@ export function setupApplicationTracking(
     } catch (error) {
       console.error("Job Tracker: Failed sending application:", error);
     }
+  }
+
+  async function handleDetection(applicationConfidence: number) {
+    /*
+     * Already saved this job?
+     * Ignore another weak signal.
+     */
+    if (savedCurrentJob && applicationConfidence < 0.8) {
+      return;
+    }
+
+    /*
+     * If another detection is already
+     * being processed, don't open a
+     * second prompt.
+     *
+     * Keep the strongest signal instead.
+     */
+    if (detectionInProgress) {
+      queuedConfidence = Math.max(queuedConfidence ?? 0, applicationConfidence);
+
+      return;
+    }
+
+    detectionInProgress = true;
+
+    try {
+      await processDetection(applicationConfidence);
+    } finally {
+      detectionInProgress = false;
+
+      const nextConfidence = queuedConfidence;
+
+      queuedConfidence = null;
+
+      if (
+        nextConfidence !== null &&
+        (!savedCurrentJob || nextConfidence >= 0.8)
+      ) {
+        void handleDetection(nextConfidence);
+      }
+    }
+  }
+
+  adapter.observeApplicationProcess((applicationConfidence) => {
+    void handleDetection(applicationConfidence);
   });
 }

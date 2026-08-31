@@ -10,13 +10,40 @@ import {
   getCurrentOwnerKey,
   syncApplication,
 } from "./syncService";
+import { isSameJob } from "../utils/jobIdentity";
+
+async function findMatchingApplication(
+  ownerKey: string,
+  candidate: {
+    company: string;
+    jobTitle: string;
+    jobUrl?: string;
+    platform?: JobApplication["platform"];
+  },
+) {
+  const applications = await db.applications
+    .where("ownerKey")
+    .equals(ownerKey)
+    .filter((application) => !application.deletedAt)
+    .toArray();
+
+  return applications.find((application) => isSameJob(application, candidate));
+}
 
 export async function createManualApplication(values: ApplicationFormValues) {
   const ownerKey = await getCurrentOwnerKey();
-  const existing = await db.applications
-    .where("[ownerKey+company+jobTitle]")
-    .equals([ownerKey, values.company, values.jobTitle])
-    .first();
+  const company = values.company.trim();
+
+  const jobTitle = values.jobTitle.trim();
+
+  const jobUrl = values.jobUrl?.trim() || "";
+
+  const existing = await findMatchingApplication(ownerKey, {
+    company,
+    jobTitle,
+    jobUrl,
+    platform: values.platform,
+  });
 
   if (existing) {
     throw new Error("An application for this company and role already exists.");
@@ -114,11 +141,10 @@ export async function updateApplication(
 
     notes: values.notes?.trim() || "",
 
-    // If the user manually changes a record
-    // to Applied/Interview/etc, that's an
-    // explicit confirmation.
     applicationConfidence:
-      values.status === "Saved" ? existing.applicationConfidence : 1,
+      existing.source === "manual" && values.status !== "Saved"
+        ? 1
+        : existing.applicationConfidence,
 
     userConfirmed: values.status === "Saved" ? existing.userConfirmed : true,
 
@@ -137,10 +163,7 @@ export async function processDetectedApplication(
   payload: NewApplicationPayload,
 ) {
   const ownerKey = await getCurrentOwnerKey();
-  const existingApp = await db.applications
-    .where("[ownerKey+company+jobTitle]")
-    .equals([ownerKey, payload.company, payload.jobTitle])
-    .first();
+  const existingApp = await findMatchingApplication(ownerKey, payload);
 
   const now = new Date().toISOString();
 
@@ -150,9 +173,20 @@ export async function processDetectedApplication(
     );
 
     await db.applications.update(existingApp.id, {
-      status: payload.status,
+      status:
+        existingApp.status === "Saved" ? payload.status : existingApp.status,
 
-      applicationDate: payload.applicationDate,
+      applicationDate:
+        existingApp.status === "Saved"
+          ? payload.applicationDate
+          : existingApp.applicationDate,
+
+      jobUrl: existingApp.jobUrl || payload.jobUrl,
+
+      platform:
+        existingApp.platform === "Other"
+          ? payload.platform
+          : existingApp.platform,
 
       extractionConfidence: Math.max(
         existingApp.extractionConfidence ?? 0,
@@ -253,7 +287,9 @@ export async function updateApplicationStatus(
     status,
 
     applicationConfidence:
-      status === "Saved" ? existing.applicationConfidence : 1,
+      existing.source === "manual" && status !== "Saved"
+        ? 1
+        : existing.applicationConfidence,
 
     userConfirmed: status === "Saved" ? existing.userConfirmed : true,
 
