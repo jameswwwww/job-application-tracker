@@ -511,6 +511,8 @@ onUnmounted(() => {
           <path d="M21 12a9 9 0 1 1-2.64-6.36" />
         </svg>
 
+        <span v-else-if="syncError" class="h-2 w-2 rounded-full bg-red-500" />
+
         <!-- Pending -->
         <span
           v-else-if="pendingSyncCount > 0"
@@ -523,6 +525,8 @@ onUnmounted(() => {
         <span v-if="!isOnline"> Offline </span>
 
         <span v-else-if="isSyncing"> Syncing… </span>
+
+        <span v-else-if="syncError" :title="syncError"> Sync error </span>
 
         <span v-else-if="pendingSyncCount > 0">
           {{ pendingSyncCount }}

@@ -6,7 +6,7 @@ import type { JobApplication, NewApplicationPayload } from "../types";
 
 import { promptUserForConfirmation } from "./uiInjector";
 
-import { getJobIdentityKey } from "./jobIdentity";
+import { getJobIdentityKey, mergeJobContext } from "./jobIdentity";
 
 function looksLikeConfirmationTitle(value: string | null | undefined) {
   if (!value) {
@@ -168,44 +168,28 @@ export function setupApplicationTracking(
       return;
     }
 
-    const currentDetails = adapter.extractJobDetails();
+    const rawCurrentDetails = adapter.extractJobDetails();
+
+    const currentDetails =
+      rawCurrentDetails &&
+      !looksLikeConfirmationTitle(rawCurrentDetails.jobTitle)
+        ? rawCurrentDetails
+        : null;
 
     const cachedDetails = await getCachedJobContext();
 
-    /*
-     * Prefer the cached job-page
-     * information because the current
-     * page could now be a confirmation
-     * screen.
-     */
+    const mergedDetails = mergeJobContext(cachedDetails, currentDetails ?? {});
+
     const jobDetails: Partial<JobApplication> = {
-      jobTitle: cachedDetails?.jobTitle || currentDetails?.jobTitle,
+      ...mergedDetails,
 
-      company: cachedDetails?.company || currentDetails?.company,
+      platform: mergedDetails.platform ?? adapter.platformName,
 
-      location: cachedDetails?.location || currentDetails?.location || null,
+      jobUrl: mergedDetails.jobUrl ?? window.location.href,
 
-      salary: cachedDetails?.salary || currentDetails?.salary || null,
+      extractionConfidence: mergedDetails.extractionConfidence ?? 0.5,
 
-      jobType: cachedDetails?.jobType || currentDetails?.jobType || null,
-
-      platform:
-        currentDetails?.platform ||
-        cachedDetails?.platform ||
-        adapter.platformName,
-
-      jobUrl:
-        cachedDetails?.jobUrl || currentDetails?.jobUrl || window.location.href,
-
-      extractionConfidence:
-        currentDetails?.extractionConfidence ??
-        cachedDetails?.extractionConfidence ??
-        0.5,
-
-      extractionMethod:
-        currentDetails?.extractionMethod ??
-        cachedDetails?.extractionMethod ??
-        "generic-dom",
+      extractionMethod: mergedDetails.extractionMethod ?? "generic-dom",
     };
 
     if (!jobDetails.jobTitle && !jobDetails.company) {

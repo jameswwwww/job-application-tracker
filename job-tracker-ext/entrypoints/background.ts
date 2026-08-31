@@ -58,6 +58,12 @@ export default defineBackground(() => {
     }
   });
 
+  browser.tabs.onRemoved.addListener((tabId) => {
+    browser.storage.session.remove(contextKey(tabId)).catch((error) => {
+      console.warn("JobTrack: Unable to clear tab job context", error);
+    });
+  });
+
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === "CACHE_JOB_CONTEXT") {
       const tabId = _sender.tab?.id;
@@ -166,6 +172,18 @@ export default defineBackground(() => {
     if (message.type === "SYNC_NOW") {
       runSync()
         .then((result) => {
+          if (result.errors > 0) {
+            sendResponse({
+              status: "Error",
+
+              message: `${result.errors} item(s) failed to sync.`,
+
+              result,
+            });
+
+            return;
+          }
+
           sendResponse({
             status: "Success",
             result,
