@@ -148,7 +148,7 @@ export async function updateApplication(
         source: "manual",
 
         occurredAt:
-          values.status === "Applied"
+          existing.status === "Saved" && values.status === "Applied"
             ? new Date(values.applicationDate).toISOString()
             : now,
       })
@@ -314,6 +314,10 @@ export async function processDetectedApplication(
 
   if (ownerKey !== GUEST_OWNER_KEY) {
     await syncApplication(newApp.id);
+
+    for (const event of initialEvents) {
+      await syncStatusEvent(event.id);
+    }
   }
 
   return newApp.id;

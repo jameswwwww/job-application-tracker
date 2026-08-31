@@ -108,4 +108,20 @@ describe("status history", () => {
       "Interview",
     ]);
   });
+
+  it("creates deterministic migration event ids", () => {
+    const first = buildInitialStatusEvents(
+      application("Interview"),
+      "migration",
+    );
+
+    const second = buildInitialStatusEvents(
+      application("Interview"),
+      "migration",
+    );
+
+    expect(first.map((event) => event.id)).toEqual(
+      second.map((event) => event.id),
+    );
+  });
 });

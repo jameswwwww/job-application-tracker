@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
+import { v4 as uuidv4, v5 as uuidv5 } from "uuid";
 
 import type {
   ApplicationStatus,
@@ -7,7 +7,10 @@ import type {
   StatusEventSource,
 } from "../types";
 
+const MIGRATION_EVENT_NAMESPACE = "87d3c9c2-6ae0-4c94-a412-4e3e0d6d8aa1";
+
 interface BuildStatusEventOptions {
+  id?: string;
   applicationId: string;
   ownerKey: string;
   status: ApplicationStatus;
@@ -19,7 +22,7 @@ export function buildStatusEvent(
   options: BuildStatusEventOptions,
 ): ApplicationStatusEvent {
   return {
-    id: uuidv4(),
+    id: options.id ?? uuidv4(),
 
     applicationId: options.applicationId,
 
@@ -48,6 +51,14 @@ export function buildInitialStatusEvents(
   if (application.status === "Saved") {
     return [
       buildStatusEvent({
+        id:
+          source === "migration"
+            ? migrationEventId(
+                application.id,
+                "Applied",
+                application.applicationDate,
+              )
+            : undefined,
         applicationId: application.id,
 
         ownerKey: application.ownerKey,
@@ -66,6 +77,14 @@ export function buildInitialStatusEvents(
    * has at least reached Applied.
    */
   const appliedEvent = buildStatusEvent({
+    id:
+      source === "migration"
+        ? migrationEventId(
+            application.id,
+            "Applied",
+            application.applicationDate,
+          )
+        : undefined,
     applicationId: application.id,
 
     ownerKey: application.ownerKey,
@@ -86,6 +105,14 @@ export function buildInitialStatusEvents(
    * already be further along.
    */
   const currentEvent = buildStatusEvent({
+    id:
+      source === "migration"
+        ? migrationEventId(
+            application.id,
+            "Applied",
+            application.applicationDate,
+          )
+        : undefined,
     applicationId: application.id,
 
     ownerKey: application.ownerKey,
@@ -98,4 +125,16 @@ export function buildInitialStatusEvents(
   });
 
   return [appliedEvent, currentEvent];
+}
+
+function migrationEventId(
+  applicationId: string,
+  status: ApplicationStatus,
+  occurredAt: string,
+) {
+  return uuidv5(
+    [applicationId, status, occurredAt, "migration"].join("|"),
+
+    MIGRATION_EVENT_NAMESPACE,
+  );
 }
