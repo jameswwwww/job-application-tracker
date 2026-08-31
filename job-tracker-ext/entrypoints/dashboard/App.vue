@@ -26,6 +26,8 @@ import {
   syncCurrentUserApplications,
 } from "../../src/services/syncService";
 
+import { buildApplicationAnalytics } from "../../src/utils/analytics";
+
 import ApplicationForm from "../../components/ApplicationForm.vue";
 import AuthModal from "../../components/AuthModal.vue";
 import ConfirmDialog from "../../components/ConfirmDialog.vue";
@@ -121,6 +123,20 @@ async function handleAuthenticated() {
 // -----------------------------
 // Dashboard Statistics
 // -----------------------------
+
+const analytics = computed(() => buildApplicationAnalytics(applications.value));
+
+const monthlyMaximum = computed(() =>
+  Math.max(1, ...analytics.value.monthlyTrend.map((month) => month.count)),
+);
+
+const topPlatforms = computed(() =>
+  analytics.value.platformBreakdown.slice(0, 5),
+);
+
+function monthlyBarWidth(count: number) {
+  return `${Math.round((count / monthlyMaximum.value) * 100)}%`;
+}
 
 const totalApplications = computed(() => applications.value.length);
 
@@ -574,6 +590,159 @@ onUnmounted(() => {
           <p class="mt-3 text-3xl font-semibold tracking-tight text-gray-900">
             {{ offerCount }}
           </p>
+        </div>
+      </section>
+
+      <!-- Analytics -->
+      <section class="mb-6 grid gap-4 lg:grid-cols-3">
+        <!-- Performance -->
+        <div
+          class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.03)]"
+        >
+          <div>
+            <h2 class="text-sm font-semibold text-slate-800">Performance</h2>
+
+            <p class="mt-1 text-xs text-slate-400">
+              Based on submitted applications
+            </p>
+          </div>
+
+          <div class="mt-5 divide-y divide-slate-100">
+            <div class="flex items-center justify-between py-3">
+              <span class="text-sm text-slate-500"> Submitted </span>
+
+              <span class="text-lg font-semibold text-slate-900">
+                {{ analytics.submittedCount }}
+              </span>
+            </div>
+
+            <div class="flex items-center justify-between py-3">
+              <div>
+                <div class="text-sm text-slate-500">Response rate</div>
+
+                <div class="mt-0.5 text-xs text-slate-400">
+                  Assessment, interview, offer or rejection
+                </div>
+              </div>
+
+              <span class="text-lg font-semibold text-slate-900">
+                {{ analytics.responseRate }}%
+              </span>
+            </div>
+
+            <div class="flex items-center justify-between py-3">
+              <div>
+                <div class="text-sm text-slate-500">Interview rate</div>
+
+                <div class="mt-0.5 text-xs text-slate-400">
+                  Reached interview or offer
+                </div>
+              </div>
+
+              <span class="text-lg font-semibold text-slate-900">
+                {{ analytics.interviewRate }}%
+              </span>
+            </div>
+
+            <div class="flex items-center justify-between pt-3">
+              <span class="text-sm text-slate-500"> Offer rate </span>
+
+              <span class="text-lg font-semibold text-slate-900">
+                {{ analytics.offerRate }}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Monthly activity -->
+        <div
+          class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.03)]"
+        >
+          <div>
+            <h2 class="text-sm font-semibold text-slate-800">
+              Application activity
+            </h2>
+
+            <p class="mt-1 text-xs text-slate-400">
+              Submitted during the last six months
+            </p>
+          </div>
+
+          <div class="mt-5 space-y-3.5">
+            <div v-for="month in analytics.monthlyTrend" :key="month.key">
+              <div class="mb-1.5 flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-500">
+                  {{ month.label }}
+                </span>
+
+                <span class="text-xs text-slate-400">
+                  {{ month.count }}
+                </span>
+              </div>
+
+              <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  class="h-full rounded-full bg-blue-500 transition-all"
+                  :style="{
+                    width: monthlyBarWidth(month.count),
+                  }"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Platform breakdown -->
+        <div
+          class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.03)]"
+        >
+          <div>
+            <h2 class="text-sm font-semibold text-slate-800">Platforms</h2>
+
+            <p class="mt-1 text-xs text-slate-400">
+              Where your applications come from
+            </p>
+          </div>
+
+          <div v-if="topPlatforms.length > 0" class="mt-5 space-y-4">
+            <div v-for="item in topPlatforms" :key="item.platform">
+              <div class="mb-1.5 flex items-center justify-between gap-4">
+                <span class="truncate text-sm text-slate-600">
+                  {{ item.platform }}
+                </span>
+
+                <div class="flex shrink-0 items-center gap-2">
+                  <span class="text-xs text-slate-400">
+                    {{ item.count }}
+                  </span>
+
+                  <span
+                    class="w-9 text-right text-xs font-medium text-slate-600"
+                  >
+                    {{ item.percentage }}%
+                  </span>
+                </div>
+              </div>
+
+              <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  class="h-full rounded-full bg-slate-700 transition-all"
+                  :style="{
+                    width: `${item.percentage}%`,
+                  }"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div
+            v-else
+            class="mt-8 rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center"
+          >
+            <p class="text-sm text-slate-400">
+              Submit an application to see platform analytics.
+            </p>
+          </div>
         </div>
       </section>
 
