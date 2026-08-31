@@ -2,7 +2,7 @@ import { db } from "./db";
 import { supabase } from "./supabase";
 import { getSessionUserId } from "./authService";
 
-import type { JobApplication } from "../types";
+import type { ApplicationStatusEvent, JobApplication } from "../types";
 
 export const GUEST_OWNER_KEY = "guest";
 
@@ -37,6 +37,22 @@ interface CloudApplicationRow {
 
   created_at: string;
   updated_at: string;
+}
+
+interface CloudStatusEventRow {
+  id: string;
+
+  application_id: string;
+
+  user_id: string;
+
+  status: string;
+
+  source: string;
+
+  occurred_at: string;
+
+  created_at: string;
 }
 
 export interface SyncResult {
@@ -140,6 +156,64 @@ function fromCloudRow(row: CloudApplicationRow): JobApplication {
   };
 }
 
+function toCloudStatusEventRow(
+  event: ApplicationStatusEvent,
+  userId: string,
+): CloudStatusEventRow {
+  return {
+    id: event.id,
+
+    application_id: event.applicationId,
+
+    user_id: userId,
+
+    status: event.status,
+
+    source: event.source,
+
+    occurred_at: event.occurredAt,
+
+    created_at: event.createdAt,
+  };
+}
+
+function fromCloudStatusEventRow(
+  row: CloudStatusEventRow,
+): ApplicationStatusEvent {
+  return {
+    id: row.id,
+
+    applicationId: row.application_id,
+
+    ownerKey: row.user_id,
+
+    status: row.status as ApplicationStatusEvent["status"],
+
+    source: row.source as ApplicationStatusEvent["source"],
+
+    occurredAt: row.occurred_at,
+
+    createdAt: row.created_at,
+
+    syncState: "synced",
+  };
+}
+
+async function uploadStatusEvent(
+  event: ApplicationStatusEvent,
+  userId: string,
+) {
+  const { error } = await supabase
+    .from("application_status_events")
+    .upsert(toCloudStatusEventRow(event, userId), {
+      onConflict: "id",
+    });
+
+  if (error) {
+    throw error;
+  }
+}
+
 async function uploadApplication(application: JobApplication, userId: string) {
   const row = toCloudRow(application, userId);
 
@@ -149,6 +223,117 @@ async function uploadApplication(application: JobApplication, userId: string) {
 
   if (error) {
     throw error;
+  }
+}
+
+export async function syncStatusEvent(id: string): Promise<boolean> {
+  const event = await db.statusEvents.get(id);
+
+  if (!event) {
+    return true;
+  }
+
+  if (event.ownerKey === GUEST_OWNER_KEY) {
+    return true;
+  }
+
+  const userId = await getSessionUserId();
+
+  if (!userId || userId !== event.ownerKey) {
+    return false;
+  }
+
+  try {
+    await uploadStatusEvent(event, userId);
+
+    await db.statusEvents.update(id, {
+      syncState: "synced",
+    });
+
+    return true;
+  } catch (error) {
+    console.warn("JobTrack: Status history sync failed.", error);
+
+    await db.statusEvents.update(id, {
+      syncState: "pending",
+    });
+
+    return false;
+  }
+}
+
+async function syncStatusEventsForUser(userId: string, result: SyncResult) {
+  const { data, error } = await supabase
+    .from("application_status_events")
+    .select("*")
+    .eq("user_id", userId);
+
+  if (error) {
+    console.warn("JobTrack: Unable to pull status history.", error);
+
+    result.errors++;
+
+    return;
+  }
+
+  const cloudEvents = (data ?? []) as CloudStatusEventRow[];
+
+  const cloudMap = new Map<string, CloudStatusEventRow>();
+
+  for (const event of cloudEvents) {
+    cloudMap.set(event.id, event);
+  }
+
+  const localEvents = await db.statusEvents
+    .where("ownerKey")
+    .equals(userId)
+    .toArray();
+
+  for (const localEvent of localEvents) {
+    const cloudEvent = cloudMap.get(localEvent.id);
+
+    if (!cloudEvent) {
+      try {
+        await uploadStatusEvent(localEvent, userId);
+
+        await db.statusEvents.update(localEvent.id, {
+          syncState: "synced",
+        });
+
+        result.pushed++;
+      } catch (error) {
+        console.warn("JobTrack: Status event upload failed", error);
+
+        await db.statusEvents.update(localEvent.id, {
+          syncState: "pending",
+        });
+
+        result.errors++;
+      }
+
+      continue;
+    }
+
+    /*
+     * Events are immutable.
+     * If both copies exist,
+     * we only need to mark
+     * the local one synced.
+     */
+    await db.statusEvents.update(localEvent.id, {
+      syncState: "synced",
+    });
+
+    cloudMap.delete(localEvent.id);
+  }
+
+  /*
+   * Cloud-only events.
+   */
+  for (const cloudEvent of cloudMap.values()) {
+    await db.statusEvents.put(fromCloudStatusEventRow(cloudEvent));
+
+    result.pulled++;
   }
 }
 
@@ -199,6 +384,11 @@ export async function syncApplication(id: string): Promise<boolean> {
 }
 
 async function migrateGuestApplications(userId: string) {
+  const guestStatusEvents = await db.statusEvents
+    .where("ownerKey")
+    .equals(GUEST_OWNER_KEY)
+    .toArray();
+
   const guestApplications = await db.applications
     .where("ownerKey")
     .equals(GUEST_OWNER_KEY)
@@ -211,7 +401,7 @@ async function migrateGuestApplications(userId: string) {
 
   const now = new Date().toISOString();
 
-  await db.transaction("rw", db.applications, async () => {
+  await db.transaction("rw", db.applications, db.statusEvents, async () => {
     for (const application of guestApplications) {
       await db.applications.update(application.id, {
         ownerKey: userId,
@@ -219,6 +409,14 @@ async function migrateGuestApplications(userId: string) {
         syncState: "pending",
 
         updatedAt: now,
+      });
+    }
+
+    for (const event of guestStatusEvents) {
+      await db.statusEvents.update(event.id, {
+        ownerKey: userId,
+
+        syncState: "pending",
       });
     }
   });
@@ -377,6 +575,8 @@ export async function syncCurrentUserApplications(): Promise<SyncResult> {
 
     result.pulled++;
   }
+
+  await syncStatusEventsForUser(userId, result);
 
   return result;
 }

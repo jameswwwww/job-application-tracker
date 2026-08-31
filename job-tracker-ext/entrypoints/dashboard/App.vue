@@ -15,7 +15,10 @@ import type {
   ApplicationFormValues,
   ApplicationStatus,
   JobPlatform,
+  ApplicationStatusEvent,
 } from "../../src/types";
+
+import { getStatusHistory } from "../../src/services/statusHistoryService";
 
 import type { User } from "@supabase/supabase-js";
 
@@ -51,6 +54,12 @@ const lastSyncAt = ref<string | null>(null);
 const syncError = ref<string | null>(null);
 
 const pendingDelete = ref<JobApplication | null>(null);
+
+const historyApplication = ref<JobApplication | null>(null);
+
+const statusHistory = ref<ApplicationStatusEvent[]>([]);
+
+const isHistoryLoading = ref(false);
 
 // -----------------------------
 // Search & Filters
@@ -118,6 +127,34 @@ async function handleAuthenticated() {
   await syncCurrentUserApplications();
 
   await loadApplications();
+}
+
+async function openHistory(application: JobApplication) {
+  historyApplication.value = application;
+
+  isHistoryLoading.value = true;
+
+  try {
+    statusHistory.value = await getStatusHistory(application.id);
+  } finally {
+    isHistoryLoading.value = false;
+  }
+}
+
+function closeHistory() {
+  historyApplication.value = null;
+
+  statusHistory.value = [];
+}
+
+function formatHistoryDate(value: string) {
+  return new Date(value).toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 // -----------------------------
@@ -1015,6 +1052,25 @@ onUnmounted(() => {
                   >
                     <button
                       type="button"
+                      class="rounded-lg p-2 text-gray-400 transition hover:bg-blue-50 hover:text-blue-600"
+                      title="Status history"
+                      @click="openHistory(job)"
+                    >
+                      <svg
+                        width="15"
+                        height="15"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <circle cx="12" cy="12" r="9" />
+
+                        <path d="M12 7v5l3 2" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
                       class="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
                       title="Edit"
                       @click="openEditForm(job)"
@@ -1129,6 +1185,98 @@ onUnmounted(() => {
       @close="showAuthModal = false"
       @authenticated="handleAuthenticated"
     />
+
+    <div
+      v-if="historyApplication"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+      @click.self="closeHistory"
+    >
+      <div
+        class="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-xl"
+      >
+        <div
+          class="flex items-start justify-between border-b border-slate-100 px-6 py-5"
+        >
+          <div>
+            <h2 class="text-base font-semibold text-slate-900">
+              Application history
+            </h2>
+
+            <p class="mt-1 text-sm text-slate-500">
+              {{ historyApplication.jobTitle }}
+              ·
+              {{ historyApplication.company }}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            class="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            @click="closeHistory"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div class="max-h-[65vh] overflow-y-auto px-6 py-5">
+          <div
+            v-if="isHistoryLoading"
+            class="py-10 text-center text-sm text-slate-400"
+          >
+            Loading history…
+          </div>
+
+          <div
+            v-else-if="statusHistory.length === 0"
+            class="py-10 text-center text-sm text-slate-400"
+          >
+            No status history yet.
+          </div>
+
+          <div v-else class="relative">
+            <div class="absolute bottom-3 left-7px top-3 w-px bg-slate-200" />
+
+            <div
+              v-for="event in statusHistory"
+              :key="event.id"
+              class="relative flex gap-4 pb-6 last:pb-0"
+            >
+              <div
+                class="relative z-10 mt-1 h-15px w-15px shrink-0 rounded-full border-[3px] border-white bg-blue-500 shadow-sm"
+              />
+
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span
+                    :class="[
+                      'rounded-full border px-2 py-1 text-xs font-medium',
+                      statusClass(event.status),
+                    ]"
+                  >
+                    {{ event.status }}
+                  </span>
+
+                  <span
+                    v-if="event.source === 'migration'"
+                    class="text-[11px] text-slate-400"
+                  >
+                    imported history
+                  </span>
+
+                  <span v-else class="text-[11px] capitalize text-slate-400">
+                    {{ event.source }}
+                  </span>
+                </div>
+
+                <p class="mt-1.5 text-xs text-slate-400">
+                  {{ formatHistoryDate(event.occurredAt) }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <ConfirmDialog
       v-if="pendingDelete"

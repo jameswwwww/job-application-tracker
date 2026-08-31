@@ -12,13 +12,21 @@ export async function getSyncStatus(): Promise<SyncStatus> {
 
   let pendingCount = 0;
 
-  if (ownerKey !== GUEST_OWNER_KEY) {
-    pendingCount = await db.applications
+  const [pendingApplications, pendingStatusEvents] = await Promise.all([
+    db.applications
       .where("ownerKey")
       .equals(ownerKey)
       .filter((application) => application.syncState === "pending")
-      .count();
-  }
+      .count(),
+
+    db.statusEvents
+      .where("ownerKey")
+      .equals(ownerKey)
+      .filter((event) => event.syncState === "pending")
+      .count(),
+  ]);
+
+  pendingCount = pendingApplications + pendingStatusEvents;
 
   const stored = await browser.storage.local.get([
     "jobtrackLastSyncAt",

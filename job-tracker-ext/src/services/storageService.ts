@@ -9,8 +9,13 @@ import {
   GUEST_OWNER_KEY,
   getCurrentOwnerKey,
   syncApplication,
+  syncStatusEvent,
 } from "./syncService";
 import { isSameJob } from "../utils/jobIdentity";
+import {
+  buildInitialStatusEvents,
+  buildStatusEvent,
+} from "../utils/statusHistory";
 
 async function findMatchingApplication(
   ownerKey: string,
@@ -97,10 +102,20 @@ export async function createManualApplication(values: ApplicationFormValues) {
     deletedAt: null,
   };
 
-  await db.applications.add(newApplication);
+  const initialEvents = buildInitialStatusEvents(newApplication, "manual");
+
+  await db.transaction("rw", db.applications, db.statusEvents, async () => {
+    await db.applications.add(newApplication);
+
+    await db.statusEvents.bulkAdd(initialEvents);
+  });
 
   if (ownerKey !== GUEST_OWNER_KEY) {
     await syncApplication(newApplication.id);
+
+    for (const event of initialEvents) {
+      await syncStatusEvent(event.id);
+    }
   }
 
   return newApplication.id;
@@ -120,40 +135,69 @@ export async function updateApplication(
 
   const now = new Date().toISOString();
 
-  await db.applications.update(id, {
-    company: values.company.trim(),
+  const statusChanged = existing.status !== values.status;
 
-    jobTitle: values.jobTitle.trim(),
+  const statusEvent = statusChanged
+    ? buildStatusEvent({
+        applicationId: existing.id,
 
-    location: values.location?.trim() || null,
+        ownerKey: existing.ownerKey,
 
-    salary: values.salary?.trim() || null,
+        status: values.status,
 
-    jobType: values.jobType?.trim() || null,
+        source: "manual",
 
-    platform: values.platform,
+        occurredAt:
+          values.status === "Applied"
+            ? new Date(values.applicationDate).toISOString()
+            : now,
+      })
+    : null;
 
-    jobUrl: values.jobUrl?.trim() || "",
+  await db.transaction("rw", db.applications, db.statusEvents, async () => {
+    await db.applications.update(id, {
+      company: values.company.trim(),
 
-    applicationDate: new Date(values.applicationDate).toISOString(),
+      jobTitle: values.jobTitle.trim(),
 
-    status: values.status,
+      location: values.location?.trim() || null,
 
-    notes: values.notes?.trim() || "",
+      salary: values.salary?.trim() || null,
 
-    applicationConfidence:
-      existing.source === "manual" && values.status !== "Saved"
-        ? 1
-        : existing.applicationConfidence,
+      jobType: values.jobType?.trim() || null,
 
-    userConfirmed: values.status === "Saved" ? existing.userConfirmed : true,
+      platform: values.platform,
 
-    updatedAt: now,
-    syncState,
+      jobUrl: values.jobUrl?.trim() || "",
+
+      applicationDate: new Date(values.applicationDate).toISOString(),
+
+      status: values.status,
+
+      notes: values.notes?.trim() || "",
+
+      applicationConfidence:
+        existing.source === "manual" && values.status !== "Saved"
+          ? 1
+          : existing.applicationConfidence,
+
+      userConfirmed: values.status === "Saved" ? existing.userConfirmed : true,
+
+      updatedAt: now,
+
+      syncState,
+    });
+
+    if (statusEvent) {
+      await db.statusEvents.add(statusEvent);
+    }
   });
 
   if (existing.ownerKey !== GUEST_OWNER_KEY) {
     await syncApplication(id);
+    if (statusEvent) {
+      await syncStatusEvent(statusEvent.id);
+    }
   }
 
   return id;
@@ -172,46 +216,72 @@ export async function processDetectedApplication(
       "Job Tracker: Duplicate detected. Updating existing application.",
     );
 
-    await db.applications.update(existingApp.id, {
-      status:
-        existingApp.status === "Saved" ? payload.status : existingApp.status,
+    const shouldRecordApplied =
+      existingApp.status === "Saved" && payload.status === "Applied";
 
-      applicationDate:
-        existingApp.status === "Saved"
-          ? payload.applicationDate
-          : existingApp.applicationDate,
+    const statusEvent = shouldRecordApplied
+      ? buildStatusEvent({
+          applicationId: existingApp.id,
 
-      jobUrl: existingApp.jobUrl || payload.jobUrl,
+          ownerKey,
 
-      platform:
-        existingApp.platform === "Other"
-          ? payload.platform
-          : existingApp.platform,
+          status: "Applied",
 
-      extractionConfidence: Math.max(
-        existingApp.extractionConfidence ?? 0,
-        payload.extractionConfidence,
-      ),
+          source: "automatic",
 
-      applicationConfidence: Math.max(
-        existingApp.applicationConfidence ?? 0,
-        payload.applicationConfidence,
-      ),
+          occurredAt: payload.applicationDate,
+        })
+      : null;
 
-      userConfirmed: existingApp.userConfirmed || payload.userConfirmed,
+    await db.transaction("rw", db.applications, db.statusEvents, async () => {
+      await db.applications.update(existingApp.id, {
+        status:
+          existingApp.status === "Saved" ? payload.status : existingApp.status,
 
-      location: payload.location || existingApp.location,
+        applicationDate:
+          existingApp.status === "Saved"
+            ? payload.applicationDate
+            : existingApp.applicationDate,
 
-      salary: payload.salary || existingApp.salary,
+        jobUrl: existingApp.jobUrl || payload.jobUrl,
 
-      jobType: payload.jobType || existingApp.jobType,
+        platform:
+          existingApp.platform === "Other"
+            ? payload.platform
+            : existingApp.platform,
 
-      updatedAt: now,
-      syncState: ownerKey === GUEST_OWNER_KEY ? "local" : "pending",
+        extractionConfidence: Math.max(
+          existingApp.extractionConfidence ?? 0,
+          payload.extractionConfidence,
+        ),
+
+        applicationConfidence: Math.max(
+          existingApp.applicationConfidence ?? 0,
+          payload.applicationConfidence,
+        ),
+
+        userConfirmed: existingApp.userConfirmed || payload.userConfirmed,
+
+        location: payload.location || existingApp.location,
+
+        salary: payload.salary || existingApp.salary,
+
+        jobType: payload.jobType || existingApp.jobType,
+
+        updatedAt: now,
+        syncState: ownerKey === GUEST_OWNER_KEY ? "local" : "pending",
+      });
+
+      if (statusEvent) {
+        await db.statusEvents.add(statusEvent);
+      }
     });
 
     if (ownerKey !== GUEST_OWNER_KEY) {
       await syncApplication(existingApp.id);
+      if (statusEvent) {
+        await syncStatusEvent(statusEvent.id);
+      }
     }
 
     return existingApp.id;
@@ -232,9 +302,15 @@ export async function processDetectedApplication(
     deletedAt: null,
   };
 
+  const initialEvents = buildInitialStatusEvents(newApp, "automatic");
+
   console.log("Job Tracker: Saving new application:", newApp);
 
-  await db.applications.add(newApp);
+  await db.transaction("rw", db.applications, db.statusEvents, async () => {
+    await db.applications.add(newApp);
+
+    await db.statusEvents.bulkAdd(initialEvents);
+  });
 
   if (ownerKey !== GUEST_OWNER_KEY) {
     await syncApplication(newApp.id);
@@ -253,7 +329,11 @@ export async function deleteApplication(id: string) {
   // Guest applications have no
   // cloud copy.
   if (existing.ownerKey === GUEST_OWNER_KEY) {
-    await db.applications.delete(id);
+    await db.transaction("rw", db.applications, db.statusEvents, async () => {
+      await db.statusEvents.where("applicationId").equals(id).delete();
+
+      await db.applications.delete(id);
+    });
 
     return;
   }
@@ -282,23 +362,44 @@ export async function updateApplicationStatus(
   }
 
   const now = new Date().toISOString();
+  if (existing.status === status) {
+    return;
+  }
 
-  await db.applications.update(id, {
+  const statusEvent = buildStatusEvent({
+    applicationId: existing.id,
+
+    ownerKey: existing.ownerKey,
+
     status,
 
-    applicationConfidence:
-      existing.source === "manual" && status !== "Saved"
-        ? 1
-        : existing.applicationConfidence,
+    source: "manual",
 
-    userConfirmed: status === "Saved" ? existing.userConfirmed : true,
+    occurredAt: now,
+  });
 
-    syncState: existing.ownerKey === GUEST_OWNER_KEY ? "local" : "pending",
+  await db.transaction("rw", db.applications, db.statusEvents, async () => {
+    await db.applications.update(id, {
+      status,
 
-    updatedAt: now,
+      applicationConfidence:
+        existing.source === "manual" && status !== "Saved"
+          ? 1
+          : existing.applicationConfidence,
+
+      userConfirmed: status === "Saved" ? existing.userConfirmed : true,
+
+      syncState: existing.ownerKey === GUEST_OWNER_KEY ? "local" : "pending",
+
+      updatedAt: now,
+    });
+
+    await db.statusEvents.add(statusEvent);
   });
 
   if (existing.ownerKey !== GUEST_OWNER_KEY) {
     await syncApplication(id);
+
+    await syncStatusEvent(statusEvent.id);
   }
 }

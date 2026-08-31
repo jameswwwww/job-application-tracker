@@ -20,6 +20,26 @@ export type ApplicationStatus =
   | "Rejected"
   | "Withdrawn";
 
+export type StatusEventSource = "manual" | "automatic" | "migration";
+
+export interface ApplicationStatusEvent {
+  id: string;
+
+  applicationId: string;
+
+  ownerKey: string;
+
+  status: ApplicationStatus;
+
+  source: StatusEventSource;
+
+  occurredAt: string;
+
+  createdAt: string;
+
+  syncState: SyncState;
+}
+
 export type ApplicationSource = "automatic" | "manual";
 
 export type ExtractionMethod =
