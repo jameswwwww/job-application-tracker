@@ -7,10 +7,55 @@ import { mergeJobContext } from "../src/utils/jobIdentity";
 
 const SYNC_ALARM = "jobtrack-sync";
 
+const BASE_SYNC_MINUTES = 5;
+const MAX_SYNC_MINUTES = 60;
+const SYNC_BACKOFF_STORAGE_KEY = "jobtrackSyncConsecutiveFailures";
+
 const JOB_CONTEXT_PREFIX = "jobtrack-job-context-";
 
 function contextKey(tabId: number) {
   return `${JOB_CONTEXT_PREFIX}${tabId}`;
+}
+
+function syncPeriodMinutes(failures: number): number {
+  // Exponential backoff: 5, 10, 20, 40, 60 (capped)
+  const minutes = BASE_SYNC_MINUTES * Math.pow(2, failures);
+  return Math.min(minutes, MAX_SYNC_MINUTES);
+}
+
+async function scheduleNextSync() {
+  const stored = await browser.storage.local.get(SYNC_BACKOFF_STORAGE_KEY);
+  const failures = typeof stored[SYNC_BACKOFF_STORAGE_KEY] === "number"
+    ? stored[SYNC_BACKOFF_STORAGE_KEY]
+    : 0;
+
+  const period = syncPeriodMinutes(failures);
+
+  browser.alarms.create(SYNC_ALARM, { delayInMinutes: period });
+
+  if (failures > 0) {
+    console.log(`JobTrack: next sync in ${period} min (backoff, ${failures} failures)`);
+  }
+}
+
+async function recordSyncSuccess() {
+  await browser.storage.local.set({
+    [SYNC_BACKOFF_STORAGE_KEY]: 0,
+    jobtrackLastSyncAt: new Date().toISOString(),
+    jobtrackLastSyncError: null,
+  });
+}
+
+async function recordSyncFailure(message: string) {
+  const stored = await browser.storage.local.get(SYNC_BACKOFF_STORAGE_KEY);
+  const prev = typeof stored[SYNC_BACKOFF_STORAGE_KEY] === "number"
+    ? stored[SYNC_BACKOFF_STORAGE_KEY]
+    : 0;
+
+  await browser.storage.local.set({
+    [SYNC_BACKOFF_STORAGE_KEY]: prev + 1,
+    jobtrackLastSyncError: message,
+  });
 }
 
 async function runSync() {
@@ -20,26 +65,19 @@ async function runSync() {
     console.log("JobTrack: background sync completed", result);
 
     if (result.errors > 0) {
-      await browser.storage.local.set({
-        jobtrackLastSyncError: `${result.errors} item(s) failed to sync.`,
-      });
+      await recordSyncFailure(`${result.errors} item(s) failed to sync.`);
     } else {
-      await browser.storage.local.set({
-        jobtrackLastSyncAt: new Date().toISOString(),
-
-        jobtrackLastSyncError: null,
-      });
+      await recordSyncSuccess();
     }
+
+    await scheduleNextSync();
 
     return result;
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Sync failed";
     console.error("JobTrack: background sync failed", error);
-
-    await browser.storage.local.set({
-      jobtrackLastSyncError:
-        error instanceof Error ? error.message : "Sync failed",
-    });
-
+    await recordSyncFailure(message);
+    await scheduleNextSync();
     throw error;
   }
 }
@@ -47,9 +85,10 @@ async function runSync() {
 export default defineBackground(() => {
   console.log("Job Tracker Background Service Worker initialized.");
 
-  // Create/re-create periodic sync alarm
+  // First sync fires shortly after startup,
+  // then self-schedules with backoff.
   browser.alarms.create(SYNC_ALARM, {
-    periodInMinutes: 5,
+    delayInMinutes: 1,
   });
 
   browser.alarms.onAlarm.addListener((alarm) => {

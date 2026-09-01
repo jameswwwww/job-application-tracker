@@ -12,6 +12,8 @@ import {
   getTextFromSelectors,
 } from "../../utils/extraction";
 
+import { observeSubmissionSignals } from "../../utils/submissionDetection";
+
 export class JobStreetAdapter implements SiteAdapter {
   platformName: JobApplication["platform"] = "JobStreet";
 
@@ -103,22 +105,41 @@ export class JobStreetAdapter implements SiteAdapter {
   observeApplicationProcess(onDetected: (confidence: number) => void): void {
     console.log("JobStreet Adapter: Observing application process...");
 
-    // JobStreet often uses standard click events rather than deep DOM mutations for the initial apply
-    document.body.addEventListener("click", (event) => {
-      const target = event.target as HTMLElement;
+    /*
+     * JobStreet's "Apply" button often redirects
+     * to an external ATS (Workday, Greenhouse, etc.)
+     * rather than completing in-page.
+     *
+     * We use observeSubmissionSignals so all
+     * listeners are managed in one place and
+     * cleaned up properly on teardown.
+     */
+    observeSubmissionSignals(onDetected, {
+      successPhrases: [
+        "application submitted",
+        "application received",
+        "thank you for applying",
+        "thanks for applying",
+        "your application has been submitted",
+        "we've received your application",
+      ],
 
-      // Look for clicks on the main Apply button
-      const applyButton = target.closest(
-        '[data-automation="job-detail-apply"]',
-      );
+      buttonSelectors: ['[data-automation="job-detail-apply"]'],
 
-      if (applyButton) {
-        console.log("JobStreet Adapter: Apply button clicked!");
+      buttonPhrases: [
+        "apply now",
+        "apply",
+        "submit application",
+      ],
 
-        // We assign a 0.7 confidence because clicking "Apply" on JobStreet
-        // frequently redirects to an external ATS (like Workday) rather than finishing in-page.
-        onDetected(0.7);
-      }
+      /*
+       * 0.7 confidence: clicking Apply on
+       * JobStreet frequently means a redirect
+       * to an external ATS, not a completed
+       * submission.
+       */
+      fallbackConfidence: 0.7,
+      fallbackDelayMs: 2000,
     });
   }
 }

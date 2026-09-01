@@ -358,9 +358,12 @@ export async function syncApplication(id: string): Promise<boolean> {
     if (application.deletedAt) {
       await uploadApplication(application, userId);
 
-      await db.applications.update(application.id, {
-        syncState: "synced",
-      });
+      /*
+       * Tombstone uploaded successfully.
+       * Remove it from local storage so it
+       * doesn't accumulate forever.
+       */
+      await db.applications.delete(application.id);
 
       return true;
     }
@@ -525,9 +528,18 @@ export async function syncCurrentUserApplications(): Promise<SyncResult> {
       const localUpdated = new Date(localApplication.updatedAt).getTime();
 
       if (cloudUpdated >= localUpdated) {
-        await db.applications.put(fromCloudRow(cloudApplication));
+        /*
+         * Cloud says deleted and is newer.
+         * Purge the local tombstone.
+         */
+        await db.statusEvents
+          .where("applicationId")
+          .equals(localApplication.id)
+          .delete();
 
-        result.pulled++;
+        await db.applications.delete(localApplication.id);
+
+        result.deleted++;
 
         cloudMap.delete(localApplication.id);
 
@@ -571,6 +583,14 @@ export async function syncCurrentUserApplications(): Promise<SyncResult> {
   // -------------------------
 
   for (const cloudApplication of cloudMap.values()) {
+    /*
+     * Skip cloud tombstones for apps
+     * we never had locally.
+     */
+    if (cloudApplication.deleted_at) {
+      continue;
+    }
+
     await db.applications.put(fromCloudRow(cloudApplication));
 
     result.pulled++;

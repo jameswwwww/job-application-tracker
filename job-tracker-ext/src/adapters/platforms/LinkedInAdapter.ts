@@ -12,6 +12,8 @@ import {
   getTextFromSelectors,
 } from "../../utils/extraction";
 
+import { observeSubmissionSignals } from "../../utils/submissionDetection";
+
 export class LinkedInAdapter implements SiteAdapter {
   platformName: JobApplication["platform"] = "LinkedIn";
 
@@ -91,31 +93,79 @@ export class LinkedInAdapter implements SiteAdapter {
   observeApplicationProcess(onDetected: (confidence: number) => void): void {
     console.log("LinkedIn Adapter: Observing application process...");
 
-    const observer = new MutationObserver((mutations) => {
+    /*
+     * Strategy 1: Easy Apply modal.
+     *
+     * LinkedIn's Easy Apply flow adds a success
+     * message inside a modal overlay. This is
+     * the most common in-page submission path.
+     */
+    let finished = false;
+
+    const emitOnce = (confidence: number) => {
+      if (finished) return;
+      finished = true;
+      onDetected(confidence);
+    };
+
+    const easyApplyObserver = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
-        if (mutation.type === "childList") {
-          const addedNodes = Array.from(mutation.addedNodes) as HTMLElement[];
+        if (mutation.type !== "childList") continue;
 
-          for (const node of addedNodes) {
-            if (node.nodeType !== Node.ELEMENT_NODE) continue;
+        for (const node of Array.from(mutation.addedNodes)) {
+          if (node.nodeType !== Node.ELEMENT_NODE) continue;
 
-            // Look for the success message in the Easy Apply modal
-            const textContent = node.innerText || "";
-            if (
-              textContent.includes("Your application was sent to") ||
-              textContent.includes("Application submitted")
-            ) {
-              console.log("LinkedIn Adapter: Easy Apply success detected!");
-              onDetected(0.95); // High confidence
-              observer.disconnect(); // Stop observing after success
-              return;
-            }
+          const text = (node as HTMLElement).innerText || "";
+
+          if (
+            text.includes("Your application was sent to") ||
+            text.includes("Application submitted")
+          ) {
+            console.log("LinkedIn Adapter: Easy Apply success detected!");
+            emitOnce(0.95);
+            easyApplyObserver.disconnect();
+            return;
           }
         }
       }
     });
 
-    // Observe the whole body since the Easy Apply modal is attached to the root
-    observer.observe(document.body, { childList: true, subtree: true });
+    easyApplyObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+
+    /*
+     * Strategy 2: Generic submission signals.
+     *
+     * Catches in-page forms, "Application
+     * submitted" text changes, and external-
+     * style submit buttons that the modal
+     * observer might miss.
+     */
+    observeSubmissionSignals(
+      (confidence) => {
+        easyApplyObserver.disconnect();
+        emitOnce(confidence);
+      },
+      {
+        successPhrases: [
+          "your application was sent to",
+          "application submitted",
+          "application received",
+          "thanks for applying",
+          "thank you for applying",
+        ],
+
+        buttonPhrases: [
+          "submit application",
+          "send application",
+          "continue",
+        ],
+
+        fallbackConfidence: 0.75,
+        fallbackDelayMs: 2500,
+      },
+    );
   }
 }

@@ -94,7 +94,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="w-380px bg-white text-slate-900">
+  <div class="w-500px min-w-500px bg-white text-slate-900">
     <!-- Header -->
     <div class="flex items-center justify-between px-5 pt-5 pb-4">
       <div class="flex items-center gap-3">
