@@ -34,8 +34,21 @@ import { buildApplicationAnalytics } from "../../src/utils/analytics";
 import ApplicationForm from "../../components/ApplicationForm.vue";
 import AuthModal from "../../components/AuthModal.vue";
 import ConfirmDialog from "../../components/ConfirmDialog.vue";
+import ToastNotification from "../../components/ToastNotification.vue";
 
 const applications = ref<JobApplication[]>([]);
+
+const toasts = ref<Array<{ id: number; message: string; type: "success" | "error" | "info" }>>([]);
+let toastId = 0;
+
+function showToast(message: string, type: "success" | "error" | "info" = "success") {
+  const id = ++toastId;
+  toasts.value.push({ id, message, type });
+}
+
+function dismissToast(id: number) {
+  toasts.value = toasts.value.filter((t) => t.id !== id);
+}
 
 const showForm = ref(false);
 
@@ -70,6 +83,8 @@ const searchQuery = ref("");
 const selectedStatus = ref<"All" | ApplicationStatus>("All");
 
 const selectedPlatform = ref<"All" | JobPlatform>("All");
+
+const selectedTag = ref<"All" | string>("All");
 
 const statusOptions: Array<"All" | ApplicationStatus> = [
   "All",
@@ -215,7 +230,11 @@ const filteredApplications = computed(() => {
       selectedPlatform.value === "All" ||
       application.platform === selectedPlatform.value;
 
-    return matchesSearch && matchesStatus && matchesPlatform;
+    const matchesTag =
+      selectedTag.value === "All" ||
+      (application.tags ?? []).includes(selectedTag.value);
+
+    return matchesSearch && matchesStatus && matchesPlatform && matchesTag;
   });
 });
 
@@ -294,6 +313,8 @@ async function saveForm(values: ApplicationFormValues) {
     await loadApplications();
 
     await refreshSyncStatus();
+
+    showToast(editingApplication.value ? "Application updated" : "Application added");
   } catch (error) {
     formError.value =
       error instanceof Error ? error.message : "Unable to save application.";
@@ -350,6 +371,8 @@ function clearFilters() {
   selectedStatus.value = "All";
 
   selectedPlatform.value = "All";
+
+  selectedTag.value = "All";
 }
 
 // -----------------------------
@@ -423,6 +446,73 @@ async function handleOnline() {
 function handleOffline() {
   isOnline.value = false;
 }
+
+// -----------------------------
+// CSV Export
+// -----------------------------
+
+function exportCsv() {
+  const headers = [
+    "Company",
+    "Job Title",
+    "Location",
+    "Salary",
+    "Job Type",
+    "Platform",
+    "Status",
+    "Applied Date",
+    "Source",
+    "URL",
+    "Tags",
+    "Notes",
+  ];
+
+  const rows = filteredApplications.value.map((app) => [
+    app.company,
+    app.jobTitle,
+    app.location ?? "",
+    app.salary ?? "",
+    app.jobType ?? "",
+    app.platform,
+    app.status,
+    new Date(app.applicationDate).toISOString().slice(0, 10),
+    app.source,
+    app.jobUrl,
+    (app.tags ?? []).join("; "),
+    (app.notes ?? "").replace(/\n/g, " "),
+  ]);
+
+  const csvContent = [
+    headers.join(","),
+    ...rows.map((row) =>
+      row.map((cell) => `"${String(cell).replace(/"/g, '\"')}"`).join(","),
+    ),
+  ].join("\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `jobtrack-applications-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  showToast(`Exported ${filteredApplications.value.length} applications to CSV`);
+}
+
+// -----------------------------
+// Tags (derived)
+// -----------------------------
+
+const allTags = computed(() => {
+  const tagSet = new Set<string>();
+  for (const app of applications.value) {
+    for (const tag of app.tags ?? []) {
+      tagSet.add(tag);
+    }
+  }
+  return [...tagSet].sort();
+});
 
 // -----------------------------
 // Initialisation
@@ -840,11 +930,32 @@ onUnmounted(() => {
               </option>
             </select>
 
+            <select
+              v-if="allTags.length > 0"
+              v-model="selectedTag"
+              class="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-600 outline-none hover:bg-gray-50"
+            >
+              <option value="All">All tags</option>
+
+              <option v-for="tag in allTags" :key="tag" :value="tag">
+                {{ tag }}
+              </option>
+            </select>
+
+            <button
+              type="button"
+              class="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
+              @click="exportCsv"
+            >
+              Export CSV
+            </button>
+
             <button
               v-if="
                 searchQuery ||
                 selectedStatus !== 'All' ||
-                selectedPlatform !== 'All'
+                selectedPlatform !== 'All' ||
+                selectedTag !== 'All'
               "
               type="button"
               class="px-2 text-sm font-medium text-gray-400 hover:text-gray-700"
@@ -864,7 +975,7 @@ onUnmounted(() => {
 
         <!-- Table -->
         <div class="overflow-x-auto">
-          <table class="w-full min-w-1050px text-left">
+          <table class="w-full min-w-1150px text-left">
             <thead>
               <tr class="border-b border-gray-100 text-xs text-gray-400">
                 <th class="px-5 py-3 font-medium">Role</th>
@@ -876,6 +987,8 @@ onUnmounted(() => {
                 <th class="px-5 py-3 font-medium">Applied</th>
 
                 <th class="px-5 py-3 font-medium">Confidence</th>
+
+                <th class="px-5 py-3 font-medium">Tags</th>
 
                 <th class="px-5 py-3 font-medium">Status</th>
 
@@ -1017,6 +1130,21 @@ onUnmounted(() => {
                       Confirmed
                     </div>
                   </div>
+                </td>
+
+                <!-- Tags -->
+                <td class="px-5 py-4">
+                  <div v-if="job.tags?.length" class="flex flex-wrap gap-1">
+                    <span
+                      v-for="tag in job.tags"
+                      :key="tag"
+                      class="inline-block rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600"
+                    >
+                      {{ tag }}
+                    </span>
+                  </div>
+
+                  <span v-else class="text-xs text-gray-300">—</span>
                 </td>
 
                 <!-- Status -->
@@ -1286,5 +1414,16 @@ onUnmounted(() => {
       @confirm="confirmDelete"
       @cancel="pendingDelete = null"
     />
+
+    <!-- Toasts -->
+    <div class="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 space-y-2">
+      <ToastNotification
+        v-for="toast in toasts"
+        :key="toast.id"
+        :message="toast.message"
+        :type="toast.type"
+        @close="dismissToast(toast.id)"
+      />
+    </div>
   </div>
 </template>

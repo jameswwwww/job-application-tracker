@@ -4,7 +4,7 @@ import type { SiteAdapter } from "../adapters/BaseAdapter";
 
 import type { JobApplication, NewApplicationPayload } from "../types";
 
-import { promptUserForConfirmation } from "./uiInjector";
+import { promptUserForConfirmation, showToast } from "./uiInjector";
 
 import { getJobIdentityKey, mergeJobContext } from "./jobIdentity";
 
@@ -255,6 +255,8 @@ export function setupApplicationTracking(
       userConfirmed,
 
       notes: "",
+
+      tags: [],
     };
 
     try {
@@ -264,10 +266,18 @@ export function setupApplicationTracking(
       });
 
       if (response?.status === "Success") {
-        // Important Step 10H line
         savedCurrentJob = true;
 
         await clearJobContext();
+
+        if (!ctx.isInvalid) {
+          const jobLabel =
+            jobDetails.jobTitle && jobDetails.company
+              ? `${jobDetails.jobTitle} at ${jobDetails.company}`
+              : jobDetails.jobTitle || jobDetails.company || "this role";
+
+          showToast(ctx, `\u2713 Saved: ${jobLabel}`);
+        }
       } else {
         console.error("JobTrack: Application save failed", response?.message);
       }

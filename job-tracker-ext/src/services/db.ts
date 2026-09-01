@@ -98,6 +98,23 @@ export class JobTrackerDB extends Dexie {
           await statusEvents.bulkAdd(events);
         }
       });
+
+    this.version(5)
+      .stores({
+        applications:
+          "&id, ownerKey, company, status, platform, applicationDate, source, syncState, *tags, [company+jobTitle], [ownerKey+company+jobTitle]",
+
+        statusEvents:
+          "&id, applicationId, ownerKey, status, occurredAt, syncState, [applicationId+occurredAt], [ownerKey+applicationId]",
+      })
+      .upgrade((transaction) => {
+        return transaction
+          .table("applications")
+          .toCollection()
+          .modify((application) => {
+            application.tags ??= [];
+          });
+      });
   }
 }
 

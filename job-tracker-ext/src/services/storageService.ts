@@ -92,6 +92,8 @@ export async function createManualApplication(values: ApplicationFormValues) {
 
     notes: values.notes?.trim() || "",
 
+    tags: (values.tags ?? []).map((t) => t.trim()).filter(Boolean),
+
     createdAt: now,
     updatedAt: now,
 
@@ -175,6 +177,8 @@ export async function updateApplication(
       status: values.status,
 
       notes: values.notes?.trim() || "",
+
+      tags: (values.tags ?? []).map((t) => t.trim()).filter(Boolean),
 
       applicationConfidence:
         existing.source === "manual" && values.status !== "Saved"

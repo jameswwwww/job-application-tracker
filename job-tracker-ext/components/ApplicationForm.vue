@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, watch, computed } from "vue";
+import { reactive, ref, watch, computed } from "vue";
 
 import type {
   JobApplication,
@@ -64,6 +64,8 @@ function createEmptyForm(): ApplicationFormValues {
     status: "Saved",
 
     notes: "",
+
+    tags: [],
   };
 }
 
@@ -98,6 +100,8 @@ watch(
       status: application.status,
 
       notes: application.notes || "",
+
+      tags: [...(application.tags ?? [])],
     });
   },
   {
@@ -112,6 +116,20 @@ const title = computed(() =>
 const submitLabel = computed(() =>
   props.application ? "Save Changes" : "Add Application",
 );
+
+const tagInput = ref("");
+
+function addTag() {
+  const tag = tagInput.value.trim();
+  if (tag && !form.tags.includes(tag)) {
+    form.tags.push(tag);
+  }
+  tagInput.value = "";
+}
+
+function removeTag(tag: string) {
+  form.tags = form.tags.filter((t) => t !== tag);
+}
 
 function cleanNullable(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -146,6 +164,8 @@ function submit() {
     status: form.status,
 
     notes: form.notes?.trim() || "",
+
+    tags: [...form.tags],
   });
 }
 </script>
@@ -408,6 +428,60 @@ function submit() {
                     {{ status }}
                   </option>
                 </select>
+              </div>
+            </div>
+
+            <div class="mt-4">
+              <label
+                class="mb-1.5 block text-[13px] font-medium text-slate-700"
+              >
+                Tags
+              </label>
+
+              <div class="flex flex-wrap gap-1.5">
+                <span
+                  v-for="tag in form.tags"
+                  :key="tag"
+                  class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600"
+                >
+                  {{ tag }}
+
+                  <button
+                    type="button"
+                    class="ml-0.5 rounded p-0.5 text-slate-400 transition hover:text-slate-600"
+                    @click="removeTag(tag)"
+                  >
+                    <svg
+                      width="10"
+                      height="10"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                    >
+                      <path d="M18 6 6 18" />
+                      <path d="m6 6 12 12" />
+                    </svg>
+                  </button>
+                </span>
+              </div>
+
+              <div class="mt-2 flex gap-2">
+                <input
+                  v-model="tagInput"
+                  type="text"
+                  placeholder="e.g. Remote, Priority, Referral"
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+                  @keydown.enter.prevent="addTag"
+                />
+
+                <button
+                  type="button"
+                  class="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-50"
+                  @click="addTag"
+                >
+                  Add
+                </button>
               </div>
             </div>
 

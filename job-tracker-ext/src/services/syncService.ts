@@ -33,6 +33,8 @@ interface CloudApplicationRow {
 
   notes: string;
 
+  tags: string[];
+
   deleted_at: string | null;
 
   created_at: string;
@@ -101,6 +103,8 @@ function toCloudRow(
 
     notes: application.notes ?? "",
 
+    tags: application.tags ?? [],
+
     deleted_at: application.deletedAt,
 
     created_at: application.createdAt,
@@ -145,6 +149,8 @@ function fromCloudRow(row: CloudApplicationRow): JobApplication {
     userConfirmed: row.user_confirmed,
 
     notes: row.notes,
+
+    tags: row.tags ?? [],
 
     syncState: "synced",
 

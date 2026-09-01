@@ -43,6 +43,8 @@ function application(status: JobApplication["status"]): JobApplication {
 
     notes: "",
 
+    tags: [],
+
     syncState: "local",
 
     deletedAt: null,

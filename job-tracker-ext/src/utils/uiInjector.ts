@@ -2,6 +2,7 @@ import { createApp } from "vue";
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import { createShadowRootUi } from "wxt/utils/content-script-ui/shadow-root";
 import ConfirmPrompt from "../../components/ConfirmPrompt.vue";
+import ToastInPage from "../../components/ToastInPage.vue";
 import type { JobApplication } from "../types";
 
 export function promptUserForConfirmation(
@@ -39,9 +40,25 @@ export function promptUserForConfirmation(
       onRemove(app) {
         app?.unmount();
       },
-    });
-
-    // Display the UI
-    ui.mount();
+    });  // Display the UI
+  ui.mount();
   });
+}
+
+export function showToast(
+  ctx: ContentScriptContext,
+  message: string,
+  duration = 3500,
+) {
+  const container = document.createElement("div");
+  container.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:2147483647;pointer-events:none;";
+  document.body.appendChild(container);
+
+  const app = createApp(ToastInPage, { message, duration });
+  app.mount(container);
+
+  setTimeout(() => {
+    app.unmount();
+    container.remove();
+  }, duration + 400);
 }

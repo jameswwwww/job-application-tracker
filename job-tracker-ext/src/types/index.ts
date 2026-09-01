@@ -86,6 +86,9 @@ export interface JobApplication {
 
   notes?: string;
 
+  // User-defined labels (e.g. "Remote", "Priority", "Referral").
+  tags: string[];
+
   // Cloud sync state
   syncState: SyncState;
 
@@ -94,20 +97,20 @@ export interface JobApplication {
 
   createdAt: string;
   updatedAt: string;
-}
-
-export type ApplicationFormValues = Pick<
+}export type ApplicationFormValues = Pick<
   JobApplication,
-  | "company"
-  | "jobTitle"
-  | "location"
-  | "salary"
-  | "jobType"
-  | "platform"
-  | "jobUrl"
-  | "applicationDate"
-  | "status"
-  | "notes"
+  |
+    "company"
+    | "jobTitle"
+    | "location"
+    | "salary"
+    | "jobType"
+    | "platform"
+    | "jobUrl"
+    | "applicationDate"
+    | "status"
+    | "notes"
+    | "tags"
 >;
 
 export type SyncState = "local" | "pending" | "synced";

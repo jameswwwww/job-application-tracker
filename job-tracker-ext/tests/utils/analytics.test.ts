@@ -40,6 +40,8 @@ function application(overrides: Partial<JobApplication>): JobApplication {
 
     notes: "",
 
+    tags: [],
+
     syncState: "local",
 
     deletedAt: null,
