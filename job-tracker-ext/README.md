@@ -34,3 +34,15 @@ https://<project-ref>.supabase.co/auth/v1/callback
 ```
 
 Supabase then redirects the completed login to the extension callback above.
+
+## Supabase database migrations
+
+Run the SQL files under `../supabase/migrations` against the Supabase project in
+filename order. Without the sync-schema migration, application uploads fail
+because the extension sends the `tags` field while the cloud table does not
+have that column, and status-event uploads can then fail their ownership policy
+because the parent application was never created.
+
+For a hosted project without the Supabase CLI, copy the migration into
+**Supabase Dashboard → SQL Editor** and select **Run**. Reload the extension and
+use **Sync now** after the migration succeeds.
