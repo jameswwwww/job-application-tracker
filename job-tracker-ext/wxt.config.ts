@@ -12,7 +12,7 @@ export default defineConfig({
     name: "Job Application Tracker",
     description: "Automated tracking pipeline for job applications.",
     version: "1.0.0",
-    permissions: ["storage", "alarms"],
+    permissions: ["storage", "alarms", "identity"],
     icons: {
       16: "icon/16.png",
       32: "icon/32.png",

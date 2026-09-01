@@ -44,8 +44,10 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
 
     autoRefreshToken: true,
 
-    // We're doing email/password first,
-    // not OAuth redirect handling.
+    flowType: "pkce",
+
+    // OAuth is completed explicitly through browser.identity so the popup,
+    // dashboard and background worker keep sharing the same stored session.
     detectSessionInUrl: false,
   },
 });

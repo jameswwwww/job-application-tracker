@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 
-import { signIn, signUp } from "../src/services/authService";
+import {
+  signIn,
+  signInWithGoogle,
+  signUp,
+} from "../src/services/authService";
 
 const emit = defineEmits<{
   close: [];
@@ -67,6 +71,23 @@ async function submit() {
   }
 }
 
+async function submitGoogle() {
+  error.value = "";
+  message.value = "";
+  loading.value = true;
+
+  try {
+    await signInWithGoogle();
+
+    emit("authenticated");
+    emit("close");
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : "Google sign-in failed.";
+  } finally {
+    loading.value = false;
+  }
+}
+
 function switchMode() {
   mode.value = mode.value === "login" ? "register" : "login";
 
@@ -111,7 +132,41 @@ function switchMode() {
         {{ description }}
       </p>
 
-      <form class="mt-6 space-y-4" @submit.prevent="submit">
+      <button
+        type="button"
+        :disabled="loading"
+        class="mt-6 flex w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        @click="submitGoogle"
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+          <path
+            fill="#4285F4"
+            d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.797 2.716v2.258h2.909c1.702-1.567 2.684-3.874 2.684-6.614Z"
+          />
+          <path
+            fill="#34A853"
+            d="M9 18c2.43 0 4.468-.806 5.956-2.181l-2.91-2.258c-.805.54-1.835.859-3.046.859-2.344 0-4.329-1.585-5.037-3.714H.956v2.332A8.998 8.998 0 0 0 9 18Z"
+          />
+          <path
+            fill="#FBBC05"
+            d="M3.963 10.706A5.41 5.41 0 0 1 3.682 9c0-.592.102-1.168.281-1.706V4.962H.956A8.994 8.994 0 0 0 0 9c0 1.452.347 2.827.956 4.038l3.007-2.332Z"
+          />
+          <path
+            fill="#EA4335"
+            d="M9 3.58c1.321 0 2.507.454 3.441 1.346l2.581-2.58C13.464.892 11.426 0 9 0A8.998 8.998 0 0 0 .956 4.962l3.007 2.332C4.671 5.165 6.656 3.58 9 3.58Z"
+          />
+        </svg>
+
+        Continue with Google
+      </button>
+
+      <div class="my-5 flex items-center gap-3 text-xs text-slate-400">
+        <div class="h-px flex-1 bg-slate-100" />
+        <span>or continue with email</span>
+        <div class="h-px flex-1 bg-slate-100" />
+      </div>
+
+      <form class="space-y-4" @submit.prevent="submit">
         <div>
           <label class="mb-1.5 block text-[13px] font-medium text-slate-700">
             Email
