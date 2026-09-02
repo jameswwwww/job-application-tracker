@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const auth = vi.hoisted(() => ({
   exchangeCodeForSession: vi.fn(),
+  getSession: vi.fn(),
   setSession: vi.fn(),
   signInWithOAuth: vi.fn(),
 }));
@@ -11,6 +12,7 @@ vi.mock("../../src/services/supabase", () => ({
 }));
 
 import {
+  getCurrentUser,
   getGoogleOAuthRedirectUrl,
   signInWithGoogle,
 } from "../../src/services/authService";
@@ -104,5 +106,26 @@ describe("Google extension OAuth", () => {
     );
 
     expect(getGoogleOAuthRedirectUrl()).toBe(redirectUrl);
+  });
+
+  it("restores the current user from the persisted extension session", async () => {
+    const user = { id: "user-123", email: "patrick@example.com" };
+
+    auth.getSession.mockResolvedValue({
+      data: { session: { user } },
+      error: null,
+    });
+
+    await expect(getCurrentUser()).resolves.toEqual(user);
+    expect(auth.getSession).toHaveBeenCalledOnce();
+  });
+
+  it("returns null when no persisted session exists", async () => {
+    auth.getSession.mockResolvedValue({
+      data: { session: null },
+      error: null,
+    });
+
+    await expect(getCurrentUser()).resolves.toBeNull();
   });
 });

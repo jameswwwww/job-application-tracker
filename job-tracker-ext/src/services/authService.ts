@@ -135,13 +135,19 @@ export async function signOut() {
 }
 
 export async function getCurrentUser() {
-  const { data, error } = await supabase.auth.getUser();
+  /*
+   * getSession() restores the session from chrome.storage.local and refreshes
+   * it when necessary. A remote getUser() call on every dashboard load made a
+   * temporary network failure look exactly like a sign-out after an extension
+   * reload, even though the refresh token was still stored locally.
+   */
+  const { data, error } = await supabase.auth.getSession();
 
   if (error) {
     return null;
   }
 
-  return data.user;
+  return data.session?.user ?? null;
 }
 
 export async function getCurrentUserId() {

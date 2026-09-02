@@ -18,13 +18,22 @@ export class JobStreetAdapter implements SiteAdapter {
   platformName: JobApplication["platform"] = "JobStreet";
 
   extractJobDetails(): Partial<JobApplication> | null {
+    /*
+     * JobStreet keeps the job ID in application-flow URLs such as
+     * /job/94075726/apply/success. Those pages are not job-detail pages and
+     * contain headings such as "Good luck, Patrick". Returning null here keeps
+     * the real details cached before the Apply click authoritative.
+     */
+    if (/\/(?:apply|application)(?:\/|$)/i.test(window.location.pathname)) {
+      return null;
+    }
+
     const jsonLd = getJobPostingJsonLd();
 
     const jobTitle =
       getTextFromSelectors([
         '[data-automation="job-detail-title"]',
         'h1[data-automation*="title"]',
-        "h1",
       ]) ||
       jsonLd?.title ||
       null;
@@ -32,8 +41,7 @@ export class JobStreetAdapter implements SiteAdapter {
     const company =
       getTextFromSelectors([
         '[data-automation="advertiser-name"]',
-        '[data-automation*="advertiser"]',
-        '[data-automation*="company"]',
+        '[data-automation="job-detail-company"]',
       ]) ||
       jsonLd?.hiringOrganization?.name ||
       null;
@@ -54,9 +62,7 @@ export class JobStreetAdapter implements SiteAdapter {
     const detailsText = getCombinedText([
       '[data-automation="job-detail-salary"]',
       '[data-automation="job-detail-work-type"]',
-      '[data-automation*="salary"]',
-      '[data-automation*="work-type"]',
-      '[data-automation*="job-detail"]',
+      '[data-automation="jobAdDetails"]',
     ]);
 
     const salary =

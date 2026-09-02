@@ -12,19 +12,21 @@ bun run dev
 
 ## Google sign-in setup
 
-The extension completes Supabase OAuth through the browser identity API. After
-loading the unpacked extension, attempt Google sign-in once. If its callback is
-not configured yet, the error in the auth modal will show the exact URL, for
-example:
+The extension completes Supabase OAuth through the browser identity API.
+Chromium builds use the stable extension ID
+`ockjpmilgdlmbbonhhidiodbbjghfacb`, including when the zip is unpacked into a
+different directory. Add this exact callback URL to Supabase:
 
 ```text
-https://<extension-id>.chromiumapp.org/supabase-auth
+https://ockjpmilgdlmbbonhhidiodbbjghfacb.chromiumapp.org/supabase-auth
 ```
 
 Add that complete URL in **Supabase Dashboard → Authentication → URL
-Configuration → Redirect URLs**. Use an exact extension ID for production. For
-local development across changing extension IDs, Supabase redirect URL glob
-patterns can be used temporarily.
+Configuration → Redirect URLs**. The stable ID also keeps
+`chrome.storage.local` attached to the same extension across repacked local
+builds, so the Supabase session survives Chrome extension reloads. The first
+build containing the fixed ID is a new extension identity, so sign in once
+after installing it; subsequent build refreshes keep that session.
 
 In the Google Cloud OAuth client, keep Supabase's callback URL as the authorized
 redirect URI:

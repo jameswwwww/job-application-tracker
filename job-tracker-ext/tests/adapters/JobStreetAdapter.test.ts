@@ -7,6 +7,12 @@ import { JobStreetAdapter } from "../../src/adapters/platforms/JobStreetAdapter"
 
 describe("JobStreetAdapter", () => {
   beforeEach(() => {
+    window.history.replaceState(
+      {},
+      "",
+      "/job/software-engineer-at-acme-corp-12345/job",
+    );
+
     document.head.innerHTML = "";
     document.body.innerHTML = "";
   });
@@ -77,5 +83,30 @@ describe("JobStreetAdapter", () => {
 
     expect(result).not.toBeNull();
     expect(result?.jobUrl).not.toContain("?");
+  });
+
+  it("does not extract confirmation-page copy as job details", () => {
+    window.history.replaceState({}, "", "/job/94075726/apply/success");
+
+    document.body.innerHTML = `
+      <h1>Good luck, PATRICK</h1>
+      <div data-automation="company-profile">Jobstreet</div>
+      <div data-automation="job-detail-location">Singapore</div>
+    `;
+
+    const result = new JobStreetAdapter().extractJobDetails();
+
+    expect(result).toBeNull();
+  });
+
+  it("does not use an unrelated page heading as a job title", () => {
+    document.body.innerHTML = `
+      <h1>Find your next opportunity</h1>
+      <div data-automation="job-detail-company">Jobstreet</div>
+    `;
+
+    const result = new JobStreetAdapter().extractJobDetails();
+
+    expect(result).toBeNull();
   });
 });
