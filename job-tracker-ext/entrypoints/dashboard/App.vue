@@ -38,10 +38,15 @@ import ToastNotification from "../../components/ToastNotification.vue";
 
 const applications = ref<JobApplication[]>([]);
 
-const toasts = ref<Array<{ id: number; message: string; type: "success" | "error" | "info" }>>([]);
+const toasts = ref<
+  Array<{ id: number; message: string; type: "success" | "error" | "info" }>
+>([]);
 let toastId = 0;
 
-function showToast(message: string, type: "success" | "error" | "info" = "success") {
+function showToast(
+  message: string,
+  type: "success" | "error" | "info" = "success",
+) {
   const id = ++toastId;
   toasts.value.push({ id, message, type });
 }
@@ -328,7 +333,9 @@ async function saveForm(values: ApplicationFormValues) {
 
     await refreshSyncStatus();
 
-    showToast(editingApplication.value ? "Application updated" : "Application added");
+    showToast(
+      editingApplication.value ? "Application updated" : "Application added",
+    );
   } catch (error) {
     formError.value =
       error instanceof Error ? error.message : "Unable to save application.";
@@ -511,7 +518,9 @@ function exportCsv() {
   a.click();
   URL.revokeObjectURL(url);
 
-  showToast(`Exported ${filteredApplications.value.length} applications to CSV`);
+  showToast(
+    `Exported ${filteredApplications.value.length} applications to CSV`,
+  );
 }
 
 // -----------------------------
@@ -1053,6 +1062,15 @@ onUnmounted(() => {
                         <span>·</span>
                         <span>
                           {{ job.salary }}
+                        </span>
+                      </template>
+
+                      <template v-else>
+                        <span>·</span>
+                        <span
+                          class="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700"
+                        >
+                          Undisclosed
                         </span>
                       </template>
                     </div>
