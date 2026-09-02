@@ -116,6 +116,20 @@ const currentUser = ref<User | null>(null);
 
 const showAuthModal = ref(false);
 
+function consumeLoginAction() {
+  const url = new URL(window.location.href);
+
+  if (url.searchParams.get("action") !== "login") {
+    return false;
+  }
+
+  url.searchParams.delete("action");
+
+  window.history.replaceState(window.history.state, "", url);
+
+  return true;
+}
+
 // -----------------------------
 // Load Applications
 // -----------------------------
@@ -533,8 +547,8 @@ onMounted(async () => {
     openAddForm();
   }
 
-  if (params.get("action") === "login") {
-    showAuthModal.value = true;
+  if (consumeLoginAction()) {
+    showAuthModal.value = !currentUser.value;
   }
 
   window.addEventListener("online", handleOnline);
