@@ -92,4 +92,14 @@ describe("extraction utilities", () => {
       "£90K – £135K",
     );
   });
+
+  it.each([
+    [
+      "Gaji RM 4,000 hingga RM 6,500 sebulan",
+      "RM 4,000 hingga RM 6,500 sebulan",
+    ],
+    ["Salary MYR 5K to 7K monthly", "MYR 5K to 7K monthly"],
+  ])("extracts Malaysian salary ranges from %s", (text, expected) => {
+    expect(extractSalaryFromText(text)).toBe(expected);
+  });
 });
