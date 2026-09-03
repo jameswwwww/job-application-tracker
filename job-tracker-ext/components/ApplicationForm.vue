@@ -18,6 +18,8 @@ const emit = defineEmits<{
   cancel: [];
 }>();
 
+const questionsText = ref("");
+
 const platforms: JobPlatform[] = [
   "LinkedIn",
   "JobStreet",
@@ -56,6 +58,7 @@ function createEmptyForm(): ApplicationFormValues {
     offeredSalary: null,
     jobType: null,
     recruiter: null,
+    interviewQuestions: [],
 
     platform: "Other",
 
@@ -79,6 +82,8 @@ watch(
     if (!application) {
       Object.assign(form, createEmptyForm());
 
+      questionsText.value = "";
+
       return;
     }
 
@@ -97,6 +102,8 @@ watch(
 
       recruiter: application.recruiter,
 
+      interviewQuestions: [...(application.interviewQuestions ?? [])],
+
       platform: application.platform,
 
       jobUrl: application.jobUrl,
@@ -109,6 +116,8 @@ watch(
 
       tags: [...(application.tags ?? [])],
     });
+
+    questionsText.value = (application.interviewQuestions ?? []).join("\n");
   },
   {
     immediate: true,
@@ -164,6 +173,11 @@ function submit() {
     jobType: cleanNullable(form.jobType),
 
     recruiter: cleanNullable(form.recruiter),
+
+    interviewQuestions: questionsText.value
+      .split("\n")
+      .map((question) => question.trim())
+      .filter(Boolean),
 
     platform: form.platform,
 
@@ -523,6 +537,21 @@ function submit() {
                   Add
                 </button>
               </div>
+            </div>
+
+            <div class="mt-4">
+              <label
+                class="mb-1.5 block text-[13px] font-medium text-slate-700"
+              >
+                Interview questions
+              </label>
+
+              <textarea
+                v-model="questionsText"
+                rows="4"
+                placeholder="One question per line"
+                class="w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm leading-6 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+              />
             </div>
 
             <div class="mt-4">

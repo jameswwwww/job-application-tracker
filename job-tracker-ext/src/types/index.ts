@@ -63,6 +63,7 @@ export interface JobApplication {
   offeredSalary: string | null;
   jobType: string | null;
   recruiter: string | null;
+  interviewQuestions: string[];
 
   platform: JobPlatform;
   jobUrl: string;
@@ -109,6 +110,7 @@ export interface JobApplication {
     | "offeredSalary"
     | "jobType"
     | "recruiter"
+    | "interviewQuestions"
     | "platform"
     | "jobUrl"
     | "applicationDate"

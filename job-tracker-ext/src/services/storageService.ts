@@ -72,6 +72,8 @@ export async function createManualApplication(values: ApplicationFormValues) {
 
     recruiter: values.recruiter?.trim() || null,
 
+    interviewQuestions: values.interviewQuestions,
+
     platform: values.platform,
 
     jobUrl: values.jobUrl?.trim() || "",
@@ -175,6 +177,8 @@ export async function updateApplication(
       jobType: values.jobType?.trim() || null,
 
       recruiter: values.recruiter?.trim() || null,
+
+      interviewQuestions: values.interviewQuestions,
 
       platform: values.platform,
 
@@ -283,6 +287,11 @@ export async function processDetectedApplication(
         jobType: payload.jobType || existingApp.jobType,
 
         recruiter: payload.recruiter || existingApp.recruiter,
+
+        interviewQuestions:
+          payload.interviewQuestions.length > 0
+            ? payload.interviewQuestions
+            : existingApp.interviewQuestions,
 
         updatedAt: now,
         syncState: ownerKey === GUEST_OWNER_KEY ? "local" : "pending",

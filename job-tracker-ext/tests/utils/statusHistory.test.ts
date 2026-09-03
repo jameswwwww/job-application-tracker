@@ -5,6 +5,8 @@ import type { JobApplication } from "../../src/types";
 import {
   buildInitialStatusEvents,
   buildStatusEvent,
+  formatResponseTime,
+  getResponseTimeMs,
 } from "../../src/utils/statusHistory";
 
 function application(status: JobApplication["status"]): JobApplication {
@@ -26,6 +28,8 @@ function application(status: JobApplication["status"]): JobApplication {
     jobType: null,
 
     recruiter: null,
+
+    interviewQuestions: [],
 
     platform: "LinkedIn",
 
@@ -129,5 +133,31 @@ describe("status history", () => {
     expect(first.map((event) => event.id)).toEqual(
       second.map((event) => event.id),
     );
+
+    expect(new Set(first.map((event) => event.id)).size).toBe(first.length);
+  });
+
+  it("calculates time to the first employer response", () => {
+    const events = [
+      buildStatusEvent({
+        applicationId: "app-1",
+        ownerKey: "guest",
+        status: "Applied",
+        source: "manual",
+        occurredAt: "2026-08-01T09:00:00.000Z",
+      }),
+      buildStatusEvent({
+        applicationId: "app-1",
+        ownerKey: "guest",
+        status: "Interview",
+        source: "manual",
+        occurredAt: "2026-08-03T12:00:00.000Z",
+      }),
+    ];
+
+    const milliseconds = getResponseTimeMs(events);
+
+    expect(milliseconds).toBe(51 * 60 * 60 * 1000);
+    expect(formatResponseTime(milliseconds!)).toBe("2d 3h");
   });
 });

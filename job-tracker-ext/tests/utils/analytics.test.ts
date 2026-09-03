@@ -24,6 +24,8 @@ function application(overrides: Partial<JobApplication>): JobApplication {
 
     recruiter: null,
 
+    interviewQuestions: [],
+
     platform: "LinkedIn",
 
     jobUrl: "",

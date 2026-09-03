@@ -256,6 +256,8 @@ export function setupApplicationTracking(
 
       recruiter: jobDetails.recruiter || null,
 
+      interviewQuestions: jobDetails.interviewQuestions || [],
+
       platform: jobDetails.platform || adapter.platformName,
 
       jobUrl: jobDetails.jobUrl || window.location.href,

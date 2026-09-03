@@ -20,6 +20,11 @@ import type {
 
 import { getStatusHistory } from "../../src/services/statusHistoryService";
 
+import {
+  formatResponseTime,
+  getResponseTimeMs,
+} from "../../src/utils/statusHistory";
+
 import type { User } from "@supabase/supabase-js";
 
 import { getCurrentUser, signOut } from "../../src/services/authService";
@@ -83,6 +88,8 @@ const historyApplication = ref<JobApplication | null>(null);
 const statusHistory = ref<ApplicationStatusEvent[]>([]);
 
 const isHistoryLoading = ref(false);
+
+const responseTime = computed(() => getResponseTimeMs(statusHistory.value));
 
 // -----------------------------
 // Search & Filters
@@ -505,6 +512,7 @@ function exportCsv() {
     "Offered Salary",
     "Job Type",
     "Recruiter",
+    "Interview Questions",
     "Platform",
     "Status",
     "Applied Date",
@@ -522,6 +530,7 @@ function exportCsv() {
     app.offeredSalary ?? "",
     app.jobType ?? "",
     app.recruiter ?? "",
+    app.interviewQuestions.join(" | "),
     app.platform,
     app.status,
     new Date(app.applicationDate).toISOString().slice(0, 10),
@@ -1438,6 +1447,32 @@ onUnmounted(() => {
         </div>
 
         <div class="max-h-[65vh] overflow-y-auto px-6 py-5">
+          <div
+            v-if="!isHistoryLoading && responseTime !== null"
+            class="mb-5 rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700"
+          >
+            First response after
+            <strong>{{ formatResponseTime(responseTime) }}</strong>
+          </div>
+
+          <div
+            v-if="historyApplication.interviewQuestions?.length"
+            class="mb-5 rounded-xl border border-slate-200 p-4"
+          >
+            <h3 class="text-sm font-semibold text-slate-800">
+              Interview questions
+            </h3>
+
+            <ol class="mt-2 list-decimal space-y-1 pl-5 text-sm text-slate-600">
+              <li
+                v-for="question in historyApplication.interviewQuestions"
+                :key="question"
+              >
+                {{ question }}
+              </li>
+            </ol>
+          </div>
+
           <div
             v-if="isHistoryLoading"
             class="py-10 text-center text-sm text-slate-400"
