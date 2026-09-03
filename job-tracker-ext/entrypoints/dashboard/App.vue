@@ -44,7 +44,13 @@ import {
 import ApplicationForm from "../../components/ApplicationForm.vue";
 import AuthModal from "../../components/AuthModal.vue";
 import ConfirmDialog from "../../components/ConfirmDialog.vue";
+import SalarySubmissionForm from "../../components/SalarySubmissionForm.vue";
 import ToastNotification from "../../components/ToastNotification.vue";
+
+import {
+  submitAnonymousSalary,
+  type AnonymousSalarySubmission,
+} from "../../src/services/salarySubmissionService";
 
 const applications = ref<JobApplication[]>([]);
 
@@ -66,6 +72,12 @@ function dismissToast(id: number) {
 }
 
 const showForm = ref(false);
+
+const showSalaryForm = ref(false);
+
+const salaryFormError = ref("");
+
+const isSalarySubmitting = ref(false);
 
 const editingApplication = ref<JobApplication | null>(null);
 
@@ -409,6 +421,33 @@ function clearFilters() {
   selectedTag.value = "All";
 }
 
+function openSalaryForm() {
+  if (!currentUser.value) {
+    showAuthModal.value = true;
+
+    return;
+  }
+
+  salaryFormError.value = "";
+  showSalaryForm.value = true;
+}
+
+async function saveAnonymousSalary(values: AnonymousSalarySubmission) {
+  isSalarySubmitting.value = true;
+  salaryFormError.value = "";
+
+  try {
+    await submitAnonymousSalary(values);
+    showSalaryForm.value = false;
+    showToast("Salary range submitted anonymously");
+  } catch (error) {
+    salaryFormError.value =
+      error instanceof Error ? error.message : "Unable to submit salary range.";
+  } finally {
+    isSalarySubmitting.value = false;
+  }
+}
+
 function showHistory(value: string) {
   clearFilters();
 
@@ -680,6 +719,14 @@ onUnmounted(() => {
               Sign out
             </button>
           </div>
+
+          <button
+            type="button"
+            class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+            @click="openSalaryForm"
+          >
+            Share salary
+          </button>
 
           <button
             class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
@@ -1406,6 +1453,14 @@ onUnmounted(() => {
       :error="formError"
       @save="saveForm"
       @cancel="closeForm"
+    />
+
+    <SalarySubmissionForm
+      v-if="showSalaryForm"
+      :error="salaryFormError"
+      :saving="isSalarySubmitting"
+      @save="saveAnonymousSalary"
+      @cancel="showSalaryForm = false"
     />
 
     <AuthModal
