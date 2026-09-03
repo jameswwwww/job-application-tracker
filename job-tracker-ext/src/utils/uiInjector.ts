@@ -49,12 +49,13 @@ export function showToast(
   ctx: ContentScriptContext,
   message: string,
   duration = 3500,
+  type: "success" | "warning" = "success",
 ) {
   const container = document.createElement("div");
   container.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:2147483647;pointer-events:none;";
   document.body.appendChild(container);
 
-  const app = createApp(ToastInPage, { message, duration });
+  const app = createApp(ToastInPage, { message, duration, type });
   app.mount(container);
 
   setTimeout(() => {

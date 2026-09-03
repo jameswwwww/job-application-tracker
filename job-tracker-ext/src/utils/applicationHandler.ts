@@ -8,6 +8,8 @@ import { promptUserForConfirmation, showToast } from "./uiInjector";
 
 import { getJobIdentityKey, mergeJobContext } from "./jobIdentity";
 
+import { detectSuspiciousMessagingOffer } from "./scamDetection";
+
 function looksLikeConfirmationTitle(value: string | null | undefined) {
   if (!value) {
     return false;
@@ -65,6 +67,8 @@ export function setupApplicationTracking(
 
   let savedCurrentJob = false;
 
+  let warnedJobKey: string | null = null;
+
   let detectionInProgress = false;
 
   let queuedConfidence: number | null = null;
@@ -76,6 +80,8 @@ export function setupApplicationTracking(
 
     if (key && key !== activeJobKey) {
       activeJobKey = key;
+
+      warnedJobKey = null;
 
       /*
        * New job in the same SPA tab.
@@ -100,6 +106,16 @@ export function setupApplicationTracking(
     }
 
     registerActiveJob(details);
+
+    const warning = detectSuspiciousMessagingOffer(
+      document.body.innerText || document.body.textContent,
+    );
+
+    if (warning && activeJobKey && warnedJobKey !== activeJobKey) {
+      warnedJobKey = activeJobKey;
+
+      showToast(ctx, `Potential job scam: ${warning}.`, 8000, "warning");
+    }
 
     await cacheJobContext(details);
   }
