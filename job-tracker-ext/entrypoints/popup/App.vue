@@ -116,9 +116,9 @@ onMounted(async () => {
         </div>
 
         <div>
-          <h1 class="text-[15px] font-semibold leading-tight">JobTrack</h1>
+          <h1 class="text-[15px] font-semibold leading-tight">JobGuard MY</h1>
 
-          <p class="mt-0.5 text-xs text-gray-400">Application tracker</p>
+          <p class="mt-0.5 text-xs text-gray-400">Safer job search tracker</p>
         </div>
       </div>
 

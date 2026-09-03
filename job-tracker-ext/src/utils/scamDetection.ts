@@ -24,6 +24,27 @@ const RISK_SIGNALS: Array<[RegExp, string]> = [
 const DISCLAIMER =
   /\b(?:scam warning|fraud warning|beware)\b|\b(?:never|do not|don't|will not|won't)\b[^.!?\n]{0,80}\b(?:pay|fees?|deposit|contact|message|whatsapp|telegram)\b/i;
 
+const JOB_CONTENT_SELECTORS = [
+  '[data-automation="jobAdDetails"]',
+  ".jobs-description__content",
+  "#jobDescriptionText",
+  "#job-description",
+  ".job-description",
+  '[class*="job-description"]',
+  "article",
+  "main",
+];
+
+export function getJobListingText(root: Document = document): string {
+  for (const selector of JOB_CONTENT_SELECTORS) {
+    const text = root.querySelector(selector)?.textContent?.trim();
+
+    if (text) return text;
+  }
+
+  return root.body?.innerText || root.body?.textContent || "";
+}
+
 export function detectSuspiciousMessagingOffer(
   value: string | null | undefined,
 ): string | null {

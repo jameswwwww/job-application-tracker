@@ -7,7 +7,9 @@ import type {
   StatusEventSource,
 } from "../types";
 
-const MIGRATION_EVENT_NAMESPACE = "87d3c9c2-6ae0-4c94-a412-4e3e0d6d8aa1";
+// V2 keeps corrected IDs separate from legacy IDs that could represent a
+// different status on another device.
+const MIGRATION_EVENT_NAMESPACE = "87d3c9c2-6ae0-4c94-a412-4e3e0d6d8aa2";
 
 const RESPONSE_STATUSES: ReadonlySet<ApplicationStatus> = new Set([
   "Assessment",
@@ -50,6 +52,7 @@ export function buildStatusEvent(
 export function buildInitialStatusEvents(
   application: JobApplication,
   source: StatusEventSource,
+  currentStatusAt = application.updatedAt,
 ): ApplicationStatusEvent[] {
   /*
    * A saved job hasn't necessarily
@@ -62,8 +65,8 @@ export function buildInitialStatusEvents(
           source === "migration"
             ? migrationEventId(
                 application.id,
-                "Applied",
-                application.applicationDate,
+                "Saved",
+                application.createdAt,
               )
             : undefined,
         applicationId: application.id,
@@ -88,8 +91,8 @@ export function buildInitialStatusEvents(
       source === "migration"
         ? migrationEventId(
             application.id,
-            application.status,
-            application.updatedAt,
+            "Applied",
+            application.applicationDate,
           )
         : undefined,
     applicationId: application.id,
@@ -116,8 +119,8 @@ export function buildInitialStatusEvents(
       source === "migration"
         ? migrationEventId(
             application.id,
-            "Applied",
-            application.applicationDate,
+            application.status,
+            currentStatusAt,
           )
         : undefined,
     applicationId: application.id,
@@ -128,7 +131,7 @@ export function buildInitialStatusEvents(
 
     source,
 
-    occurredAt: application.updatedAt,
+    occurredAt: currentStatusAt,
   });
 
   return [appliedEvent, currentEvent];
@@ -167,6 +170,28 @@ export function formatResponseTime(milliseconds: number): string {
   return days
     ? `${days}d${remainingHours ? ` ${remainingHours}h` : ""}`
     : `${hours}h`;
+}
+
+export function normalizeStatusOccurredAt(
+  value: string,
+  applicationDate: string,
+): string {
+  const occurredAt = new Date(value).getTime();
+  const appliedAt = new Date(applicationDate).getTime();
+
+  if (!Number.isFinite(occurredAt)) {
+    throw new Error("Enter a valid status date and time.");
+  }
+
+  if (Number.isFinite(appliedAt) && occurredAt < appliedAt) {
+    throw new Error("Status date cannot be before the application date.");
+  }
+
+  if (occurredAt > Date.now()) {
+    throw new Error("Status date cannot be in the future.");
+  }
+
+  return new Date(occurredAt).toISOString();
 }
 
 function migrationEventId(

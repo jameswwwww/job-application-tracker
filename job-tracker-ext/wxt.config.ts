@@ -18,8 +18,8 @@ export default defineConfig({
   }),
 
   manifest: ({ browser }) => ({
-    name: "Job Application Tracker",
-    description: "Automated tracking pipeline for job applications.",
+    name: "JobGuard MY",
+    description: "Malaysian job application, salary, and scam tracker.",
     permissions: ["storage", "alarms", "identity"],
     ...(browser === "firefox" ? {} : { key: CHROMIUM_EXTENSION_KEY }),
     icons: {

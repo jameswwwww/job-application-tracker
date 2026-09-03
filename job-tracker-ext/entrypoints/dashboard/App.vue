@@ -41,6 +41,8 @@ import {
   type SalaryComparisonKind,
 } from "../../src/utils/salaryComparison";
 
+import { escapeCsvCell } from "../../src/utils/csv";
+
 import ApplicationForm from "../../components/ApplicationForm.vue";
 import AuthModal from "../../components/AuthModal.vue";
 import ConfirmDialog from "../../components/ConfirmDialog.vue";
@@ -114,6 +116,11 @@ const selectedStatus = ref<"All" | ApplicationStatus>("All");
 const selectedPlatform = ref<"All" | JobPlatform>("All");
 
 const selectedTag = ref<"All" | string>("All");
+
+const historyFilter = ref<{
+  field: "company" | "recruiter";
+  value: string;
+} | null>(null);
 
 const statusOptions: Array<"All" | ApplicationStatus> = [
   "All",
@@ -259,12 +266,13 @@ const filteredApplications = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
 
   return applications.value.filter((application) => {
-    const matchesSearch =
-      !query ||
-      application.jobTitle.toLowerCase().includes(query) ||
-      application.company.toLowerCase().includes(query) ||
-      (application.recruiter || "").toLowerCase().includes(query) ||
-      (application.location || "").toLowerCase().includes(query);
+    const matchesSearch = historyFilter.value
+      ? (application[historyFilter.value.field] || "").toLowerCase() === query
+      : !query ||
+        application.jobTitle.toLowerCase().includes(query) ||
+        application.company.toLowerCase().includes(query) ||
+        (application.recruiter || "").toLowerCase().includes(query) ||
+        (application.location || "").toLowerCase().includes(query);
 
     const matchesStatus =
       selectedStatus.value === "All" ||
@@ -346,10 +354,24 @@ async function saveForm(values: ApplicationFormValues) {
   try {
     formError.value = "";
 
+    const wasEditing = Boolean(editingApplication.value);
+    const statusChanged = editingApplication.value
+      ? editingApplication.value.status !== values.status
+      : values.status !== "Saved";
+    const statusOccurredAt = statusChanged
+      ? askEmployerResponseTime(values.status)
+      : undefined;
+
+    if (statusOccurredAt === null) return;
+
     if (editingApplication.value) {
-      await updateApplication(editingApplication.value.id, values);
+      await updateApplication(
+        editingApplication.value.id,
+        values,
+        statusOccurredAt,
+      );
     } else {
-      await createManualApplication(values);
+      await createManualApplication(values, statusOccurredAt);
     }
 
     closeForm();
@@ -358,9 +380,7 @@ async function saveForm(values: ApplicationFormValues) {
 
     await refreshSyncStatus();
 
-    showToast(
-      editingApplication.value ? "Application updated" : "Application added",
-    );
+    showToast(wasEditing ? "Application updated" : "Application added");
   } catch (error) {
     formError.value =
       error instanceof Error ? error.message : "Unable to save application.";
@@ -376,11 +396,48 @@ async function updateStatus(application: JobApplication, event: Event) {
 
   const newStatus = select.value as JobApplication["status"];
 
-  await updateApplicationStatus(application.id, newStatus);
+  const statusOccurredAt = askEmployerResponseTime(newStatus);
 
-  await loadApplications();
+  if (statusOccurredAt === null) {
+    select.value = application.status;
 
-  await refreshSyncStatus();
+    return;
+  }
+
+  try {
+    await updateApplicationStatus(
+      application.id,
+      newStatus,
+      statusOccurredAt,
+    );
+
+    await loadApplications();
+
+    await refreshSyncStatus();
+  } catch (error) {
+    select.value = application.status;
+
+    showToast(
+      error instanceof Error ? error.message : "Unable to update status.",
+      "error",
+    );
+  }
+}
+
+function askEmployerResponseTime(status: ApplicationStatus) {
+  if (!["Assessment", "Interview", "Offer", "Rejected"].includes(status)) {
+    return undefined;
+  }
+
+  const now = new Date();
+  const localNow = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
+    .toISOString()
+    .slice(0, 16);
+
+  return window.prompt(
+    `When did the status change to ${status}?`,
+    localNow,
+  );
 }
 
 // -----------------------------
@@ -413,6 +470,8 @@ async function confirmDelete() {
 
 function clearFilters() {
   searchQuery.value = "";
+
+  historyFilter.value = null;
 
   selectedStatus.value = "All";
 
@@ -448,10 +507,12 @@ async function saveAnonymousSalary(values: AnonymousSalarySubmission) {
   }
 }
 
-function showHistory(value: string) {
+function showHistory(value: string, field: "company" | "recruiter") {
   clearFilters();
 
   searchQuery.value = value;
+
+  historyFilter.value = { field, value };
 }
 
 // -----------------------------
@@ -582,7 +643,7 @@ function exportCsv() {
   const csvContent = [
     headers.join(","),
     ...rows.map((row) =>
-      row.map((cell) => `"${String(cell).replace(/"/g, '\"')}"`).join(","),
+      row.map(escapeCsvCell).join(","),
     ),
   ].join("\n");
 
@@ -590,7 +651,7 @@ function exportCsv() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `jobtrack-applications-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `jobguard-my-applications-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 
@@ -1007,6 +1068,7 @@ onUnmounted(() => {
                 type="text"
                 placeholder="Search applications"
                 class="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-4 text-sm text-gray-800 outline-none transition placeholder:text-gray-400 focus:border-blue-300 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                @input="historyFilter = null"
               />
             </div>
 
@@ -1135,7 +1197,7 @@ onUnmounted(() => {
                         type="button"
                         class="hover:text-blue-600 hover:underline"
                         title="Show company history"
-                        @click="showHistory(job.company)"
+                        @click="showHistory(job.company, 'company')"
                       >
                         {{ job.company }}
                       </button>
@@ -1146,7 +1208,7 @@ onUnmounted(() => {
                           type="button"
                           class="hover:text-blue-600 hover:underline"
                           title="Show recruiter history"
-                          @click="showHistory(job.recruiter)"
+                          @click="showHistory(job.recruiter, 'recruiter')"
                         >
                           Recruiter: {{ job.recruiter }}
                         </button>
@@ -1415,7 +1477,7 @@ onUnmounted(() => {
           </h3>
 
           <p class="mt-1 text-sm text-gray-400">
-            Add one manually or let JobTrack detect your next application.
+            Add one manually or let JobGuard MY detect your next application.
           </p>
 
           <button
@@ -1520,8 +1582,8 @@ onUnmounted(() => {
 
             <ol class="mt-2 list-decimal space-y-1 pl-5 text-sm text-slate-600">
               <li
-                v-for="question in historyApplication.interviewQuestions"
-                :key="question"
+                v-for="(question, index) in historyApplication.interviewQuestions"
+                :key="index"
               >
                 {{ question }}
               </li>

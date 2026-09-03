@@ -7,6 +7,7 @@ import {
   buildStatusEvent,
   formatResponseTime,
   getResponseTimeMs,
+  normalizeStatusOccurredAt,
 } from "../../src/utils/statusHistory";
 
 function application(status: JobApplication["status"]): JobApplication {
@@ -135,6 +136,11 @@ describe("status history", () => {
     );
 
     expect(new Set(first.map((event) => event.id)).size).toBe(first.length);
+
+    const offer = buildInitialStatusEvents(application("Offer"), "migration");
+
+    expect(first[0]?.id).toBe(offer[0]?.id);
+    expect(first[1]?.id).not.toBe(offer[1]?.id);
   });
 
   it("calculates time to the first employer response", () => {
@@ -159,5 +165,21 @@ describe("status history", () => {
 
     expect(milliseconds).toBe(51 * 60 * 60 * 1000);
     expect(formatResponseTime(milliseconds!)).toBe("2d 3h");
+  });
+
+  it("validates a recorded response date", () => {
+    expect(
+      normalizeStatusOccurredAt(
+        "2026-08-03T12:00:00.000Z",
+        "2026-08-01T09:00:00.000Z",
+      ),
+    ).toBe("2026-08-03T12:00:00.000Z");
+
+    expect(() =>
+      normalizeStatusOccurredAt(
+        "2026-07-31T12:00:00.000Z",
+        "2026-08-01T09:00:00.000Z",
+      ),
+    ).toThrow("before the application date");
   });
 });

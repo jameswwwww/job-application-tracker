@@ -1,8 +1,8 @@
-# Job Application Tracker extension
+# JobGuard MY extension
 
-A WXT and Vue browser extension for detecting, saving and syncing job
-applications. The same source targets Google Chrome, Microsoft Edge, and
-Firefox.
+A WXT and Vue browser extension for Malaysian job seekers to detect scams,
+compare salaries, and track applications. The same source targets Google
+Chrome, Microsoft Edge, and Firefox.
 
 ## Development
 

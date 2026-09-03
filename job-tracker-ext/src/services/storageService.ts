@@ -15,6 +15,7 @@ import { isSameJob } from "../utils/jobIdentity";
 import {
   buildInitialStatusEvents,
   buildStatusEvent,
+  normalizeStatusOccurredAt,
 } from "../utils/statusHistory";
 
 async function findMatchingApplication(
@@ -35,7 +36,10 @@ async function findMatchingApplication(
   return applications.find((application) => isSameJob(application, candidate));
 }
 
-export async function createManualApplication(values: ApplicationFormValues) {
+export async function createManualApplication(
+  values: ApplicationFormValues,
+  statusOccurredAt?: string,
+) {
   const ownerKey = await getCurrentOwnerKey();
   const company = values.company.trim();
 
@@ -110,7 +114,13 @@ export async function createManualApplication(values: ApplicationFormValues) {
     deletedAt: null,
   };
 
-  const initialEvents = buildInitialStatusEvents(newApplication, "manual");
+  const initialEvents = buildInitialStatusEvents(
+    newApplication,
+    "manual",
+    statusOccurredAt
+      ? normalizeStatusOccurredAt(statusOccurredAt, newApplication.applicationDate)
+      : now,
+  );
 
   await db.transaction("rw", db.applications, db.statusEvents, async () => {
     await db.applications.add(newApplication);
@@ -132,6 +142,7 @@ export async function createManualApplication(values: ApplicationFormValues) {
 export async function updateApplication(
   id: string,
   values: ApplicationFormValues,
+  statusOccurredAt?: string,
 ) {
   const existing = await db.applications.get(id);
   const syncState =
@@ -158,7 +169,12 @@ export async function updateApplication(
         occurredAt:
           existing.status === "Saved" && values.status === "Applied"
             ? new Date(values.applicationDate).toISOString()
-            : now,
+            : statusOccurredAt
+              ? normalizeStatusOccurredAt(
+                  statusOccurredAt,
+                  new Date(values.applicationDate).toISOString(),
+                )
+              : now,
       })
     : null;
 
@@ -383,6 +399,7 @@ export async function deleteApplication(id: string) {
 export async function updateApplicationStatus(
   id: string,
   status: JobApplication["status"],
+  statusOccurredAt?: string,
 ) {
   const existing = await db.applications.get(id);
 
@@ -404,7 +421,9 @@ export async function updateApplicationStatus(
 
     source: "manual",
 
-    occurredAt: now,
+    occurredAt: statusOccurredAt
+      ? normalizeStatusOccurredAt(statusOccurredAt, existing.applicationDate)
+      : now,
   });
 
   await db.transaction("rw", db.applications, db.statusEvents, async () => {

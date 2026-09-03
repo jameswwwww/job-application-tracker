@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { detectSuspiciousMessagingOffer } from "../../src/utils/scamDetection";
+import {
+  detectSuspiciousMessagingOffer,
+  getJobListingText,
+} from "../../src/utils/scamDetection";
 
 describe("suspicious messaging offer detection", () => {
   it("flags paid task offers that move applicants to WhatsApp", () => {
@@ -31,5 +34,14 @@ describe("suspicious messaging offer detection", () => {
         "Scam warning: we will never ask you to pay fees or contact you through WhatsApp.",
       ),
     ).toBeNull();
+  });
+
+  it("scans the job listing instead of unrelated page content", () => {
+    document.body.innerHTML = `
+      <aside>Pay a registration fee through WhatsApp.</aside>
+      <main><div id="job-description">Build accessible web applications.</div></main>
+    `;
+
+    expect(detectSuspiciousMessagingOffer(getJobListingText())).toBeNull();
   });
 });

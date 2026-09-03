@@ -228,6 +228,8 @@ async function uploadStatusEvent(
     .from("application_status_events")
     .upsert(toCloudStatusEventRow(event, userId), {
       onConflict: "id",
+
+      ignoreDuplicates: true,
     });
 
   if (error) {

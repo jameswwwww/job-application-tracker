@@ -8,7 +8,10 @@ import { promptUserForConfirmation, showToast } from "./uiInjector";
 
 import { getJobIdentityKey, mergeJobContext } from "./jobIdentity";
 
-import { detectSuspiciousMessagingOffer } from "./scamDetection";
+import {
+  detectSuspiciousMessagingOffer,
+  getJobListingText,
+} from "./scamDetection";
 
 function looksLikeConfirmationTitle(value: string | null | undefined) {
   if (!value) {
@@ -108,7 +111,7 @@ export function setupApplicationTracking(
     registerActiveJob(details);
 
     const warning = detectSuspiciousMessagingOffer(
-      document.body.innerText || document.body.textContent,
+      getJobListingText(),
     );
 
     if (warning && activeJobKey && warnedJobKey !== activeJobKey) {
@@ -134,6 +137,30 @@ export function setupApplicationTracking(
   setTimeout(() => {
     void cacheCurrentJob();
   }, 3000);
+
+  let scamScanTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const scamObserver = new MutationObserver(() => {
+    if (ctx.isInvalid) {
+      scamObserver.disconnect();
+
+      return;
+    }
+
+    if (scamScanTimer) clearTimeout(scamScanTimer);
+
+    scamScanTimer = setTimeout(() => {
+      void cacheCurrentJob();
+    }, 500);
+  });
+
+  if (document.body) {
+    scamObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+  }
 
   function scheduleNavigationCache() {
     setTimeout(() => {
@@ -169,6 +196,10 @@ export function setupApplicationTracking(
     "pagehide",
     () => {
       clearInterval(navigationTimer);
+
+      scamObserver.disconnect();
+
+      if (scamScanTimer) clearTimeout(scamScanTimer);
     },
     {
       once: true,
