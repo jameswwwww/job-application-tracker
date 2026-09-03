@@ -20,6 +20,8 @@ function application(overrides: Partial<JobApplication>): JobApplication {
 
     jobType: null,
 
+    recruiter: null,
+
     platform: "LinkedIn",
 
     jobUrl: "",

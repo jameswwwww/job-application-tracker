@@ -115,6 +115,23 @@ export class JobTrackerDB extends Dexie {
             application.tags ??= [];
           });
       });
+
+    this.version(6)
+      .stores({
+        applications:
+          "&id, ownerKey, company, status, platform, applicationDate, source, syncState, *tags, [company+jobTitle], [ownerKey+company+jobTitle]",
+
+        statusEvents:
+          "&id, applicationId, ownerKey, status, occurredAt, syncState, [applicationId+occurredAt], [ownerKey+applicationId]",
+      })
+      .upgrade((transaction) => {
+        return transaction
+          .table("applications")
+          .toCollection()
+          .modify((application) => {
+            application.recruiter ??= null;
+          });
+      });
   }
 }
 

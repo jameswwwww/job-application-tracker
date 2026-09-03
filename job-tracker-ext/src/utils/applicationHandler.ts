@@ -252,6 +252,8 @@ export function setupApplicationTracking(
 
       jobType: jobDetails.jobType || null,
 
+      recruiter: jobDetails.recruiter || null,
+
       platform: jobDetails.platform || adapter.platformName,
 
       jobUrl: jobDetails.jobUrl || window.location.href,

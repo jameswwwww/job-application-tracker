@@ -54,6 +54,7 @@ function createEmptyForm(): ApplicationFormValues {
     location: null,
     salary: null,
     jobType: null,
+    recruiter: null,
 
     platform: "Other",
 
@@ -90,6 +91,8 @@ watch(
       salary: application.salary,
 
       jobType: application.jobType,
+
+      recruiter: application.recruiter,
 
       platform: application.platform,
 
@@ -154,6 +157,8 @@ function submit() {
     salary: cleanNullable(form.salary),
 
     jobType: cleanNullable(form.jobType),
+
+    recruiter: cleanNullable(form.recruiter),
 
     platform: form.platform,
 
@@ -307,6 +312,21 @@ function submit() {
                   v-model="form.location"
                   type="text"
                   placeholder="e.g. Kuala Lumpur"
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+                />
+              </div>
+
+              <div>
+                <label
+                  class="mb-1.5 block text-[13px] font-medium text-slate-700"
+                >
+                  Recruiter
+                </label>
+
+                <input
+                  v-model="form.recruiter"
+                  type="text"
+                  placeholder="e.g. Aina Rahman"
                   class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
                 />
               </div>

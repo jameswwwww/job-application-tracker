@@ -239,6 +239,7 @@ const filteredApplications = computed(() => {
       !query ||
       application.jobTitle.toLowerCase().includes(query) ||
       application.company.toLowerCase().includes(query) ||
+      (application.recruiter || "").toLowerCase().includes(query) ||
       (application.location || "").toLowerCase().includes(query);
 
     const matchesStatus =
@@ -396,6 +397,12 @@ function clearFilters() {
   selectedTag.value = "All";
 }
 
+function showHistory(value: string) {
+  clearFilters();
+
+  searchQuery.value = value;
+}
+
 // -----------------------------
 // Confidence Helpers
 // -----------------------------
@@ -479,6 +486,7 @@ function exportCsv() {
     "Location",
     "Salary",
     "Job Type",
+    "Recruiter",
     "Platform",
     "Status",
     "Applied Date",
@@ -494,6 +502,7 @@ function exportCsv() {
     app.location ?? "",
     app.salary ?? "",
     app.jobType ?? "",
+    app.recruiter ?? "",
     app.platform,
     app.status,
     new Date(app.applicationDate).toISOString().slice(0, 10),
@@ -1047,9 +1056,26 @@ onUnmounted(() => {
                     <div
                       class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-400"
                     >
-                      <span>
+                      <button
+                        type="button"
+                        class="hover:text-blue-600 hover:underline"
+                        title="Show company history"
+                        @click="showHistory(job.company)"
+                      >
                         {{ job.company }}
-                      </span>
+                      </button>
+
+                      <template v-if="job.recruiter">
+                        <span>·</span>
+                        <button
+                          type="button"
+                          class="hover:text-blue-600 hover:underline"
+                          title="Show recruiter history"
+                          @click="showHistory(job.recruiter)"
+                        >
+                          Recruiter: {{ job.recruiter }}
+                        </button>
+                      </template>
 
                       <template v-if="job.jobType">
                         <span>·</span>

@@ -23,6 +23,8 @@ function application(status: JobApplication["status"]): JobApplication {
 
     jobType: null,
 
+    recruiter: null,
+
     platform: "LinkedIn",
 
     jobUrl: "",
