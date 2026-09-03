@@ -21,6 +21,8 @@ function application(status: JobApplication["status"]): JobApplication {
 
     salary: null,
 
+    offeredSalary: null,
+
     jobType: null,
 
     recruiter: null,

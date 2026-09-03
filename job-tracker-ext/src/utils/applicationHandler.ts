@@ -250,6 +250,8 @@ export function setupApplicationTracking(
 
       salary: jobDetails.salary || null,
 
+      offeredSalary: jobDetails.offeredSalary || null,
+
       jobType: jobDetails.jobType || null,
 
       recruiter: jobDetails.recruiter || null,

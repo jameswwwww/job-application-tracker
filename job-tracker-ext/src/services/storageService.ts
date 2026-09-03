@@ -66,6 +66,8 @@ export async function createManualApplication(values: ApplicationFormValues) {
 
     salary: values.salary?.trim() || null,
 
+    offeredSalary: values.offeredSalary?.trim() || null,
+
     jobType: values.jobType?.trim() || null,
 
     recruiter: values.recruiter?.trim() || null,
@@ -167,6 +169,8 @@ export async function updateApplication(
       location: values.location?.trim() || null,
 
       salary: values.salary?.trim() || null,
+
+      offeredSalary: values.offeredSalary?.trim() || null,
 
       jobType: values.jobType?.trim() || null,
 
@@ -273,6 +277,8 @@ export async function processDetectedApplication(
         location: payload.location || existingApp.location,
 
         salary: payload.salary || existingApp.salary,
+
+        offeredSalary: payload.offeredSalary || existingApp.offeredSalary,
 
         jobType: payload.jobType || existingApp.jobType,
 

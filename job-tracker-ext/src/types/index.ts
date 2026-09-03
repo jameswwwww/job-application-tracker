@@ -60,6 +60,7 @@ export interface JobApplication {
 
   location: string | null;
   salary: string | null;
+  offeredSalary: string | null;
   jobType: string | null;
   recruiter: string | null;
 
@@ -105,6 +106,7 @@ export interface JobApplication {
     | "jobTitle"
     | "location"
     | "salary"
+    | "offeredSalary"
     | "jobType"
     | "recruiter"
     | "platform"

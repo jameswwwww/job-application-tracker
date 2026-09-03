@@ -18,6 +18,8 @@ function application(overrides: Partial<JobApplication>): JobApplication {
 
     salary: null,
 
+    offeredSalary: null,
+
     jobType: null,
 
     recruiter: null,

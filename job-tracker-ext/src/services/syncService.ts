@@ -15,6 +15,7 @@ interface CloudApplicationRow {
 
   location: string | null;
   salary: string | null;
+  offered_salary: string | null;
   job_type: string | null;
   recruiter: string | null;
 
@@ -82,6 +83,8 @@ function toCloudRow(
 
     salary: application.salary,
 
+    offered_salary: application.offeredSalary,
+
     job_type: application.jobType,
 
     recruiter: application.recruiter,
@@ -129,6 +132,8 @@ function fromCloudRow(row: CloudApplicationRow): JobApplication {
     location: row.location,
 
     salary: row.salary,
+
+    offeredSalary: row.offered_salary,
 
     jobType: row.job_type,
 

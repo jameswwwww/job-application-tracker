@@ -53,6 +53,7 @@ function createEmptyForm(): ApplicationFormValues {
 
     location: null,
     salary: null,
+    offeredSalary: null,
     jobType: null,
     recruiter: null,
 
@@ -89,6 +90,8 @@ watch(
       location: application.location,
 
       salary: application.salary,
+
+      offeredSalary: application.offeredSalary,
 
       jobType: application.jobType,
 
@@ -155,6 +158,8 @@ function submit() {
     location: cleanNullable(form.location),
 
     salary: cleanNullable(form.salary),
+
+    offeredSalary: cleanNullable(form.offeredSalary),
 
     jobType: cleanNullable(form.jobType),
 
@@ -335,13 +340,28 @@ function submit() {
                 <label
                   class="mb-1.5 block text-[13px] font-medium text-slate-700"
                 >
-                  Salary
+                  Advertised salary
                 </label>
 
                 <input
                   v-model="form.salary"
                   type="text"
                   placeholder="e.g. RM 5,000 – RM 7,000"
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+                />
+              </div>
+
+              <div>
+                <label
+                  class="mb-1.5 block text-[13px] font-medium text-slate-700"
+                >
+                  Offered salary
+                </label>
+
+                <input
+                  v-model="form.offeredSalary"
+                  type="text"
+                  placeholder="e.g. RM 6,500 per month"
                   class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
                 />
               </div>

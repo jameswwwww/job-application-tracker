@@ -31,6 +31,11 @@ import {
 
 import { buildApplicationAnalytics } from "../../src/utils/analytics";
 
+import {
+  compareSalaryRanges,
+  type SalaryComparisonKind,
+} from "../../src/utils/salaryComparison";
+
 import ApplicationForm from "../../components/ApplicationForm.vue";
 import AuthModal from "../../components/AuthModal.vue";
 import ConfirmDialog from "../../components/ConfirmDialog.vue";
@@ -425,6 +430,18 @@ function confidenceClass(value: number | undefined) {
   return "bg-red-50 text-red-700 border-red-200";
 }
 
+function salaryComparison(application: JobApplication) {
+  return compareSalaryRanges(application.salary, application.offeredSalary);
+}
+
+function salaryComparisonClass(kind: SalaryComparisonKind) {
+  return kind === "below"
+    ? "bg-red-50 text-red-700"
+    : kind === "above"
+      ? "bg-blue-50 text-blue-700"
+      : "bg-emerald-50 text-emerald-700";
+}
+
 async function refreshSyncStatus() {
   const status = await getSyncStatus();
 
@@ -484,7 +501,8 @@ function exportCsv() {
     "Company",
     "Job Title",
     "Location",
-    "Salary",
+    "Advertised Salary",
+    "Offered Salary",
     "Job Type",
     "Recruiter",
     "Platform",
@@ -501,6 +519,7 @@ function exportCsv() {
     app.jobTitle,
     app.location ?? "",
     app.salary ?? "",
+    app.offeredSalary ?? "",
     app.jobType ?? "",
     app.recruiter ?? "",
     app.platform,
@@ -1097,6 +1116,20 @@ onUnmounted(() => {
                           class="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700"
                         >
                           Undisclosed
+                        </span>
+                      </template>
+
+                      <template v-if="job.offeredSalary">
+                        <span>·</span>
+                        <span>Offer: {{ job.offeredSalary }}</span>
+                        <span
+                          v-if="salaryComparison(job)"
+                          :class="[
+                            'rounded-full px-2 py-0.5 font-medium',
+                            salaryComparisonClass(salaryComparison(job)!.kind),
+                          ]"
+                        >
+                          {{ salaryComparison(job)!.label }}
                         </span>
                       </template>
                     </div>
